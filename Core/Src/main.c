@@ -521,8 +521,7 @@ int main(void)
 				if((Lsm_Sensor.Pitch <= 32) && speed <= 2 /*&& altitude >300 && motor_ivmelendi_mi == 1*/ )
 				{
 					// GPIO
-//					Buzzer(1, 3000);
-//					Buzzer(1, 1);
+
 					HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, SET);
 					HAL_Delay(50);
 					HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, RESET);
