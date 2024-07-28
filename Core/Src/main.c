@@ -134,7 +134,7 @@ float P0 = 1013.25;
 float prev_alt=0;
 float speed=0, speed_max=0;;
 
-float real_pitch, real_roll , toplam_pitch,toplam_roll;
+float real_pitch, real_roll , toplam_pitch,toplam_roll , x_max;
 uint8_t  sensor_counter =0;
 
 typedef union{
@@ -360,14 +360,7 @@ int main(void)
   ////ALTITUDE OFFSET
    Altitude_Offset();
 
-//   Buzzer(6, 100);
-//
-//   for(int i =0; i<10; i++)
-//   {
-//	  // W25Q_Erase_Sector(i);
-//	   W25Q_Read(i, 0, 255, test);
-//   }
-////
+
 
  //  W25Q_Read(1, 0, sizeof(flash_accX), flash_accX);
    Buzzer(10, 100);
@@ -517,7 +510,7 @@ int main(void)
 					  //AYRILMA GERÇEKLE�?MESE BİLE APOGEE İLE ROKETİ KURTAR *ucus basladı kısmına timer kuracam ona göre ayrıldımıdan APOGEEya geçecek
 
 
-				if((Lsm_Sensor.Pitch <= 32) && speed <= 2 /*&& altitude >300 && motor_ivmelendi_mi == 1*/ )
+				if((real_pitch <= 32) && speed <= 2 && altitude < altitude_max )
 				{
 					// GPIO
 
@@ -563,8 +556,11 @@ int main(void)
 		  {
 			  altitude_rampa_control =1;
 		  }
+/*************************************************************************************/
 		  if(altitude>altitude_max) altitude_max = altitude;
+
 		  if(speed>speed_max) speed_max = speed;
+		  if( Lsm_Sensor.Accel_X> x_max) x_max =  Lsm_Sensor.Accel_X;
 /**************************************************************************************/
 		  if(adc_flag ==1)
 		  {
