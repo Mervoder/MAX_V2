@@ -41,7 +41,7 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  ../Core/Inc/lwgps/lwgps.h ../Core/Inc/lwgps/lwgps_opt.h \
  ../Core/Inc/lwgps/lwgps_opts.h ../Core/Inc/LSM6DSLTR.h \
  ../Core/Src/./BME280/bme280.h ../Core/Src/./BME280/bme280_defs.h \
- ../Core/Inc/W25Qxx.h ../Core/Inc/FIR_FILTER.h
+ ../Core/Inc/W25Qxx.h ../Core/Inc/FIR_FILTER.h ../Core/Inc/kalman.h
 ../Core/Inc/main.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
 ../Core/Inc/stm32f4xx_hal_conf.h:
@@ -93,3 +93,4 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
 ../Core/Src/./BME280/bme280_defs.h:
 ../Core/Inc/W25Qxx.h:
 ../Core/Inc/FIR_FILTER.h:
+../Core/Inc/kalman.h:

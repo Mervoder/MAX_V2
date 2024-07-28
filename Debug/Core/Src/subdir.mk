@@ -8,6 +8,7 @@ C_SRCS += \
 ../Core/Src/FIR_FILTER.c \
 ../Core/Src/LSM6DSLTR.c \
 ../Core/Src/W25Qxx.c \
+../Core/Src/kalman.c \
 ../Core/Src/lwgps.c \
 ../Core/Src/main.c \
 ../Core/Src/stm32f4xx_hal_msp.c \
@@ -20,6 +21,7 @@ OBJS += \
 ./Core/Src/FIR_FILTER.o \
 ./Core/Src/LSM6DSLTR.o \
 ./Core/Src/W25Qxx.o \
+./Core/Src/kalman.o \
 ./Core/Src/lwgps.o \
 ./Core/Src/main.o \
 ./Core/Src/stm32f4xx_hal_msp.o \
@@ -32,6 +34,7 @@ C_DEPS += \
 ./Core/Src/FIR_FILTER.d \
 ./Core/Src/LSM6DSLTR.d \
 ./Core/Src/W25Qxx.d \
+./Core/Src/kalman.d \
 ./Core/Src/lwgps.d \
 ./Core/Src/main.d \
 ./Core/Src/stm32f4xx_hal_msp.d \
@@ -48,7 +51,7 @@ Core/Src/%.o Core/Src/%.su Core/Src/%.cyclo: ../Core/Src/%.c Core/Src/subdir.mk
 clean: clean-Core-2f-Src
 
 clean-Core-2f-Src:
-	-$(RM) ./Core/Src/FIR_FILTER.cyclo ./Core/Src/FIR_FILTER.d ./Core/Src/FIR_FILTER.o ./Core/Src/FIR_FILTER.su ./Core/Src/LSM6DSLTR.cyclo ./Core/Src/LSM6DSLTR.d ./Core/Src/LSM6DSLTR.o ./Core/Src/LSM6DSLTR.su ./Core/Src/W25Qxx.cyclo ./Core/Src/W25Qxx.d ./Core/Src/W25Qxx.o ./Core/Src/W25Qxx.su ./Core/Src/lwgps.cyclo ./Core/Src/lwgps.d ./Core/Src/lwgps.o ./Core/Src/lwgps.su ./Core/Src/main.cyclo ./Core/Src/main.d ./Core/Src/main.o ./Core/Src/main.su ./Core/Src/stm32f4xx_hal_msp.cyclo ./Core/Src/stm32f4xx_hal_msp.d ./Core/Src/stm32f4xx_hal_msp.o ./Core/Src/stm32f4xx_hal_msp.su ./Core/Src/stm32f4xx_it.cyclo ./Core/Src/stm32f4xx_it.d ./Core/Src/stm32f4xx_it.o ./Core/Src/stm32f4xx_it.su ./Core/Src/syscalls.cyclo ./Core/Src/syscalls.d ./Core/Src/syscalls.o ./Core/Src/syscalls.su ./Core/Src/sysmem.cyclo ./Core/Src/sysmem.d ./Core/Src/sysmem.o ./Core/Src/sysmem.su ./Core/Src/system_stm32f4xx.cyclo ./Core/Src/system_stm32f4xx.d ./Core/Src/system_stm32f4xx.o ./Core/Src/system_stm32f4xx.su
+	-$(RM) ./Core/Src/FIR_FILTER.cyclo ./Core/Src/FIR_FILTER.d ./Core/Src/FIR_FILTER.o ./Core/Src/FIR_FILTER.su ./Core/Src/LSM6DSLTR.cyclo ./Core/Src/LSM6DSLTR.d ./Core/Src/LSM6DSLTR.o ./Core/Src/LSM6DSLTR.su ./Core/Src/W25Qxx.cyclo ./Core/Src/W25Qxx.d ./Core/Src/W25Qxx.o ./Core/Src/W25Qxx.su ./Core/Src/kalman.cyclo ./Core/Src/kalman.d ./Core/Src/kalman.o ./Core/Src/kalman.su ./Core/Src/lwgps.cyclo ./Core/Src/lwgps.d ./Core/Src/lwgps.o ./Core/Src/lwgps.su ./Core/Src/main.cyclo ./Core/Src/main.d ./Core/Src/main.o ./Core/Src/main.su ./Core/Src/stm32f4xx_hal_msp.cyclo ./Core/Src/stm32f4xx_hal_msp.d ./Core/Src/stm32f4xx_hal_msp.o ./Core/Src/stm32f4xx_hal_msp.su ./Core/Src/stm32f4xx_it.cyclo ./Core/Src/stm32f4xx_it.d ./Core/Src/stm32f4xx_it.o ./Core/Src/stm32f4xx_it.su ./Core/Src/syscalls.cyclo ./Core/Src/syscalls.d ./Core/Src/syscalls.o ./Core/Src/syscalls.su ./Core/Src/sysmem.cyclo ./Core/Src/sysmem.d ./Core/Src/sysmem.o ./Core/Src/sysmem.su ./Core/Src/system_stm32f4xx.cyclo ./Core/Src/system_stm32f4xx.d ./Core/Src/system_stm32f4xx.o ./Core/Src/system_stm32f4xx.su
 
 .PHONY: clean-Core-2f-Src
 

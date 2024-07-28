@@ -30,6 +30,7 @@
 #include "FIR_FILTER.h"
 #include "stdio.h"
 #include "string.h"
+#include "kalman.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -133,6 +134,7 @@ float alt=0;
 float P0 = 1013.25;
 float prev_alt=0;
 float speed=0, speed_max=0;;
+float altitude_kalman;
 
 float real_pitch, real_roll , toplam_pitch,toplam_roll , x_max;
 uint8_t  sensor_counter =0;
@@ -141,6 +143,8 @@ typedef union{
   float fVal;
   unsigned char array[4];
 }float2unit8;
+
+KalmanFilter kf;
 
 enum ZORLU2024
 {
@@ -267,7 +271,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 		adc= HAL_ADC_GetValue(&hadc1);
 
 
-		adc_flag == 0;
+		adc_flag = 0;
 	}
 }
 /**********************************************/
@@ -359,6 +363,7 @@ int main(void)
 
   ////ALTITUDE OFFSET
    Altitude_Offset();
+   KalmanFilter_Init(&kf, 0.01, 0.1, 0.0); // Adjust Q and R based on your system characteristics
 
 
 
@@ -376,18 +381,19 @@ int main(void)
 	if(sensor_flag==1)
 	{
 		 sensor_flag=0;
-		 prev_alt=altitude;
+		 prev_alt=altitude_kalman;
 		 rslt = bme280_set_sensor_mode(BME280_FORCED_MODE, &dev);
 		/* �?��?�터 취�? */
 		rslt = bme280_get_sensor_data(BME280_ALL, &comp_data, &dev);
 
 		if(rslt == BME280_OK)
 		{
-		  temperature = comp_data.temperature;
+		  temperature = comp_data.temperature/100.00;
 		  humidity = comp_data.humidity;
 		  pressure = comp_data.pressure;
 		  altitude=BME280_Get_Altitude()-offset_altitude;
-		  speed=(altitude-prev_alt)*20;
+		  altitude_kalman= KalmanFilter_Update(&kf, altitude);
+		  speed=(altitude_kalman-prev_alt)*20;
     	}
 
 		 LSM6DSLTR_Read_Accel_Data(&Lsm_Sensor);
