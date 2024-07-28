@@ -498,8 +498,7 @@ int main(void)
 		  case AYRILDI:
 				v4_mod=4;
 					  //MOTOR ATE�?LEME TALEBİ GÖNDER MEGU YE MESAJ AT
-//				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, SET);
-//				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, RESET);
+
 				HAL_UART_Transmit(&huart6, EGU_motor_atesleme, 5, 1000);
 				SUSTAINER=APOGEE;
 
@@ -516,7 +515,7 @@ int main(void)
 
 					HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, SET);
 
-					HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, RESET);
+
 
 					SUSTAINER=SUSTAINER_ANA;
 					altitude_rampa_control =0;
@@ -532,10 +531,12 @@ int main(void)
 				if(altitude <= 500 && speed < 0  && altitude_rampa_control == 0 )
 				{
 					// GPIO
+					HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, RESET);
 
 					HAL_GPIO_WritePin(GPIOC, GPIO_PIN_11, SET);
 
 					HAL_GPIO_WritePin(GPIOC, GPIO_PIN_11, RESET);
+
 					SUSTAINER=FINISH;
 					flash_flag=1;
 				}
@@ -560,6 +561,7 @@ int main(void)
 		  if(altitude>altitude_max) altitude_max = altitude;
 
 		  if(speed>speed_max) speed_max = speed;
+
 		  if( Lsm_Sensor.Accel_X> x_max) x_max =  Lsm_Sensor.Accel_X;
 /**************************************************************************************/
 		  if(adc_flag ==1)
@@ -569,7 +571,6 @@ int main(void)
 			  // 6V = 1755 adc val 1,41V
 			  // 8.4V = 2476 adc val 1,99V 0,58V
 			  adc_pil_val=(float)( ( ( (adc/4095)*3.3)-1.41) / (1.99-1.41) ) *100 ; // pil conv
-
 		  }
 /**********************Flash Kayıt*********************************************************/
 //	if(flash_flag == 1 && SUSTAINER >=6 ) //
@@ -1302,7 +1303,7 @@ void union_converter(void)
 			loratx[i+41]=f2u8_roll.array[i];
 		 }
 	 float2unit8 f2u8_pitch;
-	 f2u8_pitch.fVal=Lsm_Sensor.Pitch;
+	 f2u8_pitch.fVal=real_pitch;
 		 for(uint8_t i=0;i<4;i++)
 		 {
 			loratx[i+45]=f2u8_pitch.array[i];
