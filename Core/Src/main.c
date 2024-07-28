@@ -1297,7 +1297,7 @@ void union_converter(void)
 		 }
 
 	 float2unit8 f2u8_roll;
-	 f2u8_roll.fVal=Lsm_Sensor.Roll;
+	 f2u8_roll.fVal=real_roll;
 		 for(uint8_t i=0;i<4;i++)
 		 {
 			loratx[i+41]=f2u8_roll.array[i];
