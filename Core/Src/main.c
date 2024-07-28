@@ -506,8 +506,8 @@ int main(void)
 				v4_mod=4;
 					  //MOTOR ATE�?LEME TALEBİ GÖNDER MEGU YE MESAJ AT
 //				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, SET);
-//				HAL_Delay(50);
 //				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, RESET);
+				HAL_UART_Transmit(&huart6, EGU_motor_atesleme, 5, 1000);
 				SUSTAINER=APOGEE;
 
 			 break;
@@ -522,8 +522,9 @@ int main(void)
 					// GPIO
 
 					HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, SET);
-				//	HAL_Delay(50);
+
 					HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, RESET);
+
 					SUSTAINER=SUSTAINER_ANA;
 					altitude_rampa_control =0;
 				}
@@ -538,10 +539,9 @@ int main(void)
 				if(altitude <= 500 && speed < 0  && altitude_rampa_control == 0 )
 				{
 					// GPIO
-//					Buzzer(1, 1000);
-//					Buzzer(1, 1);
+
 					HAL_GPIO_WritePin(GPIOC, GPIO_PIN_11, SET);
-				//	HAL_Delay(500);
+
 					HAL_GPIO_WritePin(GPIOC, GPIO_PIN_11, RESET);
 					SUSTAINER=FINISH;
 					flash_flag=1;
