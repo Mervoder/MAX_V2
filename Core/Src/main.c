@@ -109,16 +109,16 @@ uint8_t writeData[50] = {0,1,1,1};
 uint8_t readData[50] = {0};
 uint8_t i=0;
 uint8_t i_flag=0;
-float flash_altitude[256]={0};
-float flash_accX[256]={0};
-float flash_accZ[256]={0};
-float flash_accY[256]={0};
-float flash_gyroX[256]={0};
-float flash_gyroY[256]={0};
-float flash_gyroZ[256]={0};
+uint8_t flash_altitude[256]={0};
+uint8_t flash_accX[256]={0};
+uint8_t flash_accZ[256]={0};
+uint8_t flash_accY[256]={0};
+uint8_t flash_gyroX[256]={0};
+uint8_t flash_gyroY[256]={0};
+uint8_t flash_gyroZ[256]={0};
 
 uint8_t loratx[LORA_TX_BUFFER_SIZE];
-uint8_t test[LORA_TX_BUFFER_SIZE];
+uint8_t test[256];
 uint8_t lora_flag=0;
 uint8_t sensor_flag=0;
 uint8_t egu_durum_flag=0;
@@ -193,7 +193,7 @@ FIRFilter IMU_GYROZ;
 struct bme280_dev dev;
 struct bme280_data comp_data;
 int8_t rslt=0;
-
+float2unit8 conv;
 
 
 float map( long A , long B , long C , long D, long E)
@@ -367,9 +367,9 @@ int main(void)
 //	  // W25Q_Erase_Sector(i);
 //	   W25Q_Read(i, 0, 255, test);
 //   }
+////
 
-
-
+ //  W25Q_Read(1, 0, sizeof(flash_accX), flash_accX);
    Buzzer(10, 100);
 
   /* USER CODE END 2 */
@@ -477,7 +477,6 @@ int main(void)
 		  case UCUS_BASLADI:
 				v4_mod=2;
 				// FLASH MEMORYE KAYDETMEYE BASLA
-				flash_flag =1;
 
 				SUSTAINER=KADEMEAYRILDIMI;
 
@@ -523,7 +522,7 @@ int main(void)
 					// GPIO
 
 					HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, SET);
-					HAL_Delay(50);
+				//	HAL_Delay(50);
 					HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, RESET);
 					SUSTAINER=SUSTAINER_ANA;
 					altitude_rampa_control =0;
@@ -542,9 +541,10 @@ int main(void)
 //					Buzzer(1, 1000);
 //					Buzzer(1, 1);
 					HAL_GPIO_WritePin(GPIOC, GPIO_PIN_11, SET);
-					HAL_Delay(500);
+				//	HAL_Delay(500);
 					HAL_GPIO_WritePin(GPIOC, GPIO_PIN_11, RESET);
 					SUSTAINER=FINISH;
+					flash_flag=1;
 				}
 
 			  break;
@@ -552,7 +552,7 @@ int main(void)
 		  case FINISH:
 				v4_mod=7;
 					  //KURTARMA GERÇEKLE�?Tİ VERİ KAYDETMEYİ BIRAK VE BUZZERI AÇ
-				flash_flag=1;
+
 
 			  break;
 		  }
@@ -591,25 +591,38 @@ int main(void)
 //		page++;
 //		W25Q_Write_Page(page, 0, sizeof(flash_accX), flash_gyroZ);
 //
-//
+//		flash_flag=0;
 //	}
 //
 	if(timer_200ms_flag == 1 && i_flag ==0 && SUSTAINER >=1)
 	{
-		if(i == 255) {
+		if(i >= 252) {
 			i_flag=1;
 		}
 
-		flash_accX[i] = Lsm_Sensor.Accel_X;
-		flash_accY[i] = Lsm_Sensor.Accel_Y;
-		flash_accZ[i] = Lsm_Sensor.Accel_Z;
-		flash_gyroX[i] = Lsm_Sensor.Gyro_X;
-		flash_gyroY[i] = Lsm_Sensor.Gyro_Y;
-		flash_gyroZ[i] = Lsm_Sensor.Gyro_Z;
-		flash_altitude[i] =altitude;
+		conv.fVal=Lsm_Sensor.Accel_X;
+
+		flash_accX[i] = conv.array[0];
+		flash_accX[i+1] = conv.array[1];
+		flash_accX[i+2] = conv.array[2];
+		flash_accX[i+3] = conv.array[3];
+
+		conv.fVal=Lsm_Sensor.Accel_Y;
+		flash_accY[i] = conv.array[0];
+		flash_accY[i+1] = conv.array[1];
+		flash_accY[i+2] = conv.array[2];
+		flash_accY[i+3] = conv.array[3];
+
+		conv.fVal=Lsm_Sensor.Accel_Z;
+		flash_accZ[i] = conv.array[0];
+		flash_accZ[i+1] = conv.array[1];
+		flash_accZ[i+2] = conv.array[2];
+		flash_accZ[i+3] = conv.array[3];
+
+
 		timer_200ms_flag =0;
 
-		i++;
+		i=i+4;
 
 	}
 /***********************************END*************************************************/
