@@ -124,6 +124,7 @@ uint8_t lora_flag=0;
 uint8_t sensor_flag=0;
 uint8_t egu_durum_flag=0;
 uint8_t egu_ok=0;
+uint8_t buzzer_flag=0;
 
 float temperature=0;
 float humidity=0;
@@ -240,6 +241,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 	if(htim==&htim11){ // 1 sn
    lora_flag=1;
+   if(buzzer_flag ==1) HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
 
 	}
 	if(htim==&htim10){ //30ms
@@ -420,6 +422,8 @@ int main(void)
 		 }
 
 		 magnetic_switch=HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13);
+		 if(magnetic_switch == 0) buzzer_flag=0;
+		 else buzzer_flag=1;
 		 BUTTON_STATE=HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_9);
 
 
@@ -491,8 +495,9 @@ int main(void)
 					HAL_TIM_Base_Start(&htim7);
 					timer_start_flag =1;
 				}
-
-				if((magnetic_switch==0 && EGU_RX_BUFFER[30]==0) && TIM7->CNT >= 45000 && altitude_rampa_control == 1)
+				/*manyetik switch
+				 * */
+				if((magnetic_switch==0) && TIM7->CNT >= 45000 && altitude_rampa_control == 1)
 				{
 				  SUSTAINER=AYRILDI;
 
@@ -505,6 +510,10 @@ int main(void)
 				v4_mod=4;
 					  //MOTOR ATE�?LEME TALEBİ GÖNDER MEGU YE MESAJ AT
 
+				HAL_UART_Transmit(&huart6, EGU_motor_atesleme, 5, 1000);
+				HAL_UART_Transmit(&huart6, EGU_motor_atesleme, 5, 1000);
+				HAL_UART_Transmit(&huart6, EGU_motor_atesleme, 5, 1000);
+				HAL_UART_Transmit(&huart6, EGU_motor_atesleme, 5, 1000);
 				HAL_UART_Transmit(&huart6, EGU_motor_atesleme, 5, 1000);
 				SUSTAINER=APOGEE;
 
@@ -1319,7 +1328,7 @@ void union_converter(void)
 void EGU_Buff_Load(void)
 {
 	loratx[52]=EGU_RX_BUFFER[29];//EGU HATA
-	loratx[53]=EGU_RX_BUFFER[30];//EGU AYRILMA TESPIT
+	loratx[53]=EGU_RX_BUFFER[30];//Fitil kontrol 0 ise fitil bağlı değil 1 ise fitil bağlı
 	loratx[54]=EGU_RX_BUFFER[6];//EGU BATARYA-F
 	loratx[55]=EGU_RX_BUFFER[7];
 	loratx[56]=EGU_RX_BUFFER[8];
@@ -1333,7 +1342,7 @@ void EGU_Buff_Load(void)
 	loratx[64]=EGU_RX_BUFFER[12];
 	loratx[65]=EGU_RX_BUFFER[13];
 	loratx[66]=EGU_RX_BUFFER[26];//EGU UCUS BASLADIMI?
-	loratx[67]=EGU_RX_BUFFER[28];//STAGE AYRILDIMI?
+	loratx[67]=EGU_RX_BUFFER[28];//manyetik switch 1 ise kopmadı 0 ise koptu
 	loratx[68]=EGU_RX_BUFFER[27];//MOTOR ATESLEME TALEBİ GELDİ Mİ?
 	loratx[69]='\n';
 
