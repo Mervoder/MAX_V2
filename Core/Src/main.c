@@ -363,7 +363,7 @@ int main(void)
 
   ////ALTITUDE OFFSET
    Altitude_Offset();
-   KalmanFilter_Init(&kf, 0.01, 0.1, 0.0); // Adjust Q and R based on your system characteristics
+   KalmanFilter_Init(&kf, 0.005, 0.1, 0.0); // Adjust Q=0.01 idi and R based on your system characteristics
 
 
 

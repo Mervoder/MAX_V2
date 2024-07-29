@@ -7236,7 +7236,7 @@ int main(void)
   ////ALTITUDE OFFSET
    Altitude_Offset();
  8003c02:	f001 fa69 	bl	80050d8 <Altitude_Offset>
-   KalmanFilter_Init(&kf, 0.01, 0.1, 0.0); // Adjust Q and R based on your system characteristics
+   KalmanFilter_Init(&kf, 0.005, 0.1, 0.0); // Adjust Q=0.01 idi and R based on your system characteristics
  8003c06:	ed9f 1a96 	vldr	s2, [pc, #600]	@ 8003e60 <main+0x3a8>
  8003c0a:	eddf 0a96 	vldr	s1, [pc, #600]	@ 8003e64 <main+0x3ac>
  8003c0e:	ed9f 0a96 	vldr	s0, [pc, #600]	@ 8003e68 <main+0x3b0>
@@ -7492,7 +7492,7 @@ int main(void)
  8003e5c:	20000c30 	.word	0x20000c30
  8003e60:	00000000 	.word	0x00000000
  8003e64:	3dcccccd 	.word	0x3dcccccd
- 8003e68:	3c23d70a 	.word	0x3c23d70a
+ 8003e68:	3ba3d70a 	.word	0x3ba3d70a
  8003e6c:	200009d4 	.word	0x200009d4
  8003e70:	2000098f 	.word	0x2000098f
  8003e74:	200009b8 	.word	0x200009b8
