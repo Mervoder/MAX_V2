@@ -65,8 +65,8 @@ void Error_Handler(void);
 #define TX2_GPS_GPIO_Port GPIOA
 #define RX2_GPS_Pin GPIO_PIN_3
 #define RX2_GPS_GPIO_Port GPIOA
-#define BUZZER_Pin GPIO_PIN_4
-#define BUZZER_GPIO_Port GPIOC
+#define Buzzer_Pin GPIO_PIN_4
+#define Buzzer_GPIO_Port GPIOC
 #define RX3_LORA_Pin GPIO_PIN_5
 #define RX3_LORA_GPIO_Port GPIOC
 #define M0_Pin GPIO_PIN_0

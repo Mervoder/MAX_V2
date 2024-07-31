@@ -95,7 +95,9 @@ uint8_t offset =1;
 uint8_t flash_flag =0;
 uint8_t flash_timer =0;
 uint8_t timer_200ms_flag =0;
-int buzzer_timer=0;
+
+int buzzer_long=0 , buzzer_short=0, buzzer_ariza=0 ;
+int buzzer_short_counter , buzzer_long_counter , buzzer_ariza_counter;
 
 
 float zaman=0 , zaman2=0, altitude_max=0;
@@ -124,7 +126,7 @@ uint8_t lora_flag=0;
 uint8_t sensor_flag=0;
 uint8_t egu_durum_flag=0;
 uint8_t egu_ok=0;
-uint8_t buzzer_flag=0;
+
 
 float temperature=0;
 float humidity=0;
@@ -241,18 +243,40 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 	if(htim==&htim11){ // 1 sn
    lora_flag=1;
-   if(buzzer_flag ==1) HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
+
+		if(buzzer_long ==1 && buzzer_long_counter>=2)
+		{
+			HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
+			buzzer_long_counter = 0;
+		}
+		buzzer_long_counter++;
 
 	}
+
 	if(htim==&htim10){ //30ms
 	sensor_flag=1;
 
+		if(buzzer_ariza ==1 && buzzer_ariza_counter>=3)
+		{
+			HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
+			buzzer_ariza_counter = 0;
+		}
+		buzzer_ariza_counter++;
 	}
+
+
 	if(htim==&htim6){ // 200 ms timer
 	timer_200ms_flag = 1;
 	egu_durum_flag=1;
 
-	counter++;
+		if(buzzer_short ==1 && buzzer_short_counter>=2)
+		{
+			HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
+			buzzer_short_counter = 0;
+		}
+		buzzer_short_counter++;
+
+		counter++;
 		if(counter == 15)
 		{
 			adc_flag=1;
@@ -370,7 +394,7 @@ int main(void)
 
 
  //  W25Q_Read(1, 0, sizeof(flash_accX), flash_accX);
-   Buzzer(10, 100);
+   buzzer_short = 1;
 
   /* USER CODE END 2 */
 
@@ -422,8 +446,12 @@ int main(void)
 		 }
 
 		 magnetic_switch=HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13);
-		 if(magnetic_switch == 0) buzzer_flag=0;
-		 else buzzer_flag=1;
+		 if(magnetic_switch == 0) { buzzer_long=1; buzzer_short =0;}
+		 else {
+			 buzzer_short=1;
+			 buzzer_long =0;
+		 }
+
 		 BUTTON_STATE=HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_9);
 
 
@@ -1103,7 +1131,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14|CS_Pin|BUZZER_Pin|GATE_D_Pin
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14|CS_Pin|Buzzer_Pin|GATE_D_Pin
                           |GATE_C_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
@@ -1116,9 +1144,9 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PC14 CS_Pin BUZZER_Pin GATE_D_Pin
+  /*Configure GPIO pins : PC14 CS_Pin Buzzer_Pin GATE_D_Pin
                            GATE_C_Pin */
-  GPIO_InitStruct.Pin = GPIO_PIN_14|CS_Pin|BUZZER_Pin|GATE_D_Pin
+  GPIO_InitStruct.Pin = GPIO_PIN_14|CS_Pin|Buzzer_Pin|GATE_D_Pin
                           |GATE_C_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
