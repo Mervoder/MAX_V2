@@ -10,5 +10,15 @@
 ../Core/Src/W25Qxx.c:138:6:write_enable	1
 ../Core/Src/W25Qxx.c:147:6:write_disable	1
 ../Core/Src/W25Qxx.c:156:10:bytestowrite	2
-../Core/Src/W25Qxx.c:162:6:W25Q_Erase_Sector	1
-../Core/Src/W25Qxx.c:200:6:W25Q_Write_Page	5
+../Core/Src/W25Qxx.c:162:10:bytestomodify	2
+../Core/Src/W25Qxx.c:168:6:W25Q_Erase_Sector	1
+../Core/Src/W25Qxx.c:206:6:W25Q_Write_Clean	5
+../Core/Src/W25Qxx.c:288:6:W25Q_Write	3
+../Core/Src/W25Qxx.c:319:9:W25Q_Read_Byte	1
+../Core/Src/W25Qxx.c:356:6:W25Q_Write_Byte	2
+../Core/Src/W25Qxx.c:396:6:float2Bytes	2
+../Core/Src/W25Qxx.c:411:7:Bytes2float	2
+../Core/Src/W25Qxx.c:426:6:W25Q_Write_NUM	1
+../Core/Src/W25Qxx.c:441:7:W25Q_Read_NUM	1
+../Core/Src/W25Qxx.c:448:6:W25Q_Write_32B	2
+../Core/Src/W25Qxx.c:464:6:W25Q_Read_32B	2

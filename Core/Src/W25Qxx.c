@@ -21,12 +21,12 @@ void W25Q_Delay(uint32_t time)
 
 void csLOW (void)
 {
-	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin (GPIOC, GPIO_PIN_1, GPIO_PIN_RESET);
 }
 
 void csHIGH (void)
 {
-	 HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, GPIO_PIN_SET);
+	HAL_GPIO_WritePin (GPIOC, GPIO_PIN_1, GPIO_PIN_SET);
 }
 
 void SPI_Write (uint8_t *data, uint8_t len)
@@ -67,7 +67,7 @@ void W25Q_Read (uint32_t startPage, uint8_t offset, uint32_t size, uint8_t *rDat
 {
 	uint8_t tData[5];
 	uint32_t memAddr = (startPage*256) + offset;
-
+write_enable();
 	if (numBLOCK<512)   // Chip Size<256Mb
 	{
 		tData[0] = 0x03;  // enable Read
@@ -159,6 +159,12 @@ uint32_t bytestowrite (uint32_t size, uint16_t offset)
 	else return 256-offset;
 }
 
+uint32_t bytestomodify (uint32_t size, uint16_t offset)
+{
+	if ((size+offset)<4096) return size;
+	else return 4096-offset;
+}
+
 void W25Q_Erase_Sector (uint16_t numsector)
 {
 	uint8_t tData[6];
@@ -197,7 +203,7 @@ void W25Q_Erase_Sector (uint16_t numsector)
 }
 
 
-void W25Q_Write_Page (uint32_t page, uint16_t offset, uint32_t size, uint8_t *data)
+void W25Q_Write_Clean (uint32_t page, uint16_t offset, uint32_t size, uint8_t *data)
 {
 	uint8_t tData[266];
 	uint32_t startPage = page;
@@ -251,20 +257,22 @@ void W25Q_Write_Page (uint32_t page, uint16_t offset, uint32_t size, uint8_t *da
 			tData[indx++] = data[i+dataPosition];
 		}
 
-		if (bytestosend > 200)
+		if (bytestosend > 250)
 		{
 			csLOW();
 			SPI_Write(tData, 100);
 			SPI_Write(tData+100, bytestosend-100);
 			csHIGH();
+
 		}
-		
-		else 
+
+		else
 		{
 			csLOW();
 			SPI_Write(tData, bytestosend);
 			csHIGH();
 		}
+
 
 		startPage++;
 		offset = 0;
@@ -276,3 +284,194 @@ void W25Q_Write_Page (uint32_t page, uint16_t offset, uint32_t size, uint8_t *da
 
 	}
 }
+
+void W25Q_Write (uint32_t page, uint16_t offset, uint32_t size, uint8_t *data)
+{
+	uint16_t startSector  = page/16;
+	uint16_t endSector  = (page + ((size+offset-1)/256))/16;
+	uint16_t numSectors = endSector-startSector+1;
+
+	uint8_t previousData[4096];
+	uint32_t sectorOffset = ((page%16)*256)+offset;
+	uint32_t dataindx = 0;
+	write_enable();
+
+	for (uint16_t i=0; i<numSectors; i++)
+	{
+		uint32_t startPage = startSector*16;
+		W25Q_FastRead(startPage, 0, 4096, previousData);
+
+		uint16_t bytesRemaining = bytestomodify(size, sectorOffset);
+		for (uint16_t i=0; i<bytesRemaining; i++)
+		{
+			previousData[i+sectorOffset] = data[i+dataindx];
+		}
+
+		W25Q_Write_Clean(startPage, 0, 4096, previousData);
+
+		startSector++;
+		sectorOffset = 0;
+		dataindx = dataindx+bytesRemaining;
+		size = size-bytesRemaining;
+	}
+}
+
+uint8_t W25Q_Read_Byte (uint32_t Addr)
+{
+	uint8_t tData[5];
+	uint8_t rData;
+
+	if (numBLOCK<512)   // Chip Size<256Mb
+	{
+		tData[0] = 0x03;  // enable Read
+		tData[1] = (Addr>>16)&0xFF;  // MSB of the memory Address
+		tData[2] = (Addr>>8)&0xFF;
+		tData[3] = (Addr)&0xFF; // LSB of the memory Address
+	}
+	else  // we use 32bit memory address for chips >= 256Mb
+	{
+		tData[0] = 0x13;  // Read Data with 4-Byte Address
+		tData[1] = (Addr>>24)&0xFF;  // MSB of the memory Address
+		tData[2] = (Addr>>16)&0xFF;
+		tData[3] = (Addr>>8)&0xFF;
+		tData[4] = (Addr)&0xFF; // LSB of the memory Address
+	}
+
+	csLOW();  // pull the CS Low
+	if (numBLOCK<512)
+	{
+		SPI_Write(tData, 4);  // send read instruction along with the 24 bit memory address
+	}
+	else
+	{
+		SPI_Write(tData, 5);  // send read instruction along with the 32 bit memory address
+	}
+
+	SPI_Read(&rData, 1);  // Read the data
+	csHIGH();  // pull the CS High
+
+	return rData;
+}
+
+void W25Q_Write_Byte (uint32_t Addr, uint8_t data)
+{
+	uint8_t tData[6];
+	uint8_t indx;
+
+	if (numBLOCK<512)   // Chip Size<256Mb
+	{
+		tData[0] = 0x02;  // page program
+		tData[1] = (Addr>>16)&0xFF;  // MSB of the memory Address
+		tData[2] = (Addr>>8)&0xFF;
+		tData[3] = (Addr)&0xFF; // LSB of the memory Address
+		tData[4] = data;
+		indx = 5;
+	}
+	else  // we use 32bit memory address for chips >= 256Mb
+	{
+		tData[0] = 0x12;  // Write Data with 4-Byte Address
+		tData[1] = (Addr>>24)&0xFF;  // MSB of the memory Address
+		tData[2] = (Addr>>16)&0xFF;
+		tData[3] = (Addr>>8)&0xFF;
+		tData[4] = (Addr)&0xFF; // LSB of the memory Address
+		tData[5] = data;
+		indx = 6;
+	}
+
+
+	if (W25Q_Read_Byte(Addr) == 0xFF)
+	{
+		write_enable();
+		csLOW();
+		SPI_Write(tData, indx);
+		csHIGH();
+
+		W25Q_Delay(5);
+		write_disable();
+	}
+}
+
+uint8_t tempBytes[4];
+
+void float2Bytes(uint8_t * ftoa_bytes_temp,float float_variable)
+{
+    union {
+      float a;
+      uint8_t bytes[4];
+    } thing;
+
+    thing.a = float_variable;
+
+    for (uint8_t i = 0; i < 4; i++) {
+      ftoa_bytes_temp[i] = thing.bytes[i];
+    }
+
+}
+
+float Bytes2float(uint8_t * ftoa_bytes_temp)
+{
+    union {
+      float a;
+      uint8_t bytes[4];
+    } thing;
+
+    for (uint8_t i = 0; i < 4; i++) {
+    	thing.bytes[i] = ftoa_bytes_temp[i];
+    }
+
+   float float_variable =  thing.a;
+   return float_variable;
+}
+
+void W25Q_Write_NUM (uint32_t page, uint16_t offset, float data)
+{
+	float2Bytes(tempBytes, data);
+
+//	/* write using single byte function */
+//	uint32_t Addr = (page*256)+offset;
+//	for (int i=0; i<4; i++)
+//	{
+//		W25Q_Write_Byte(i+Addr, tempBytes[i]);
+//	}
+
+	/* Write using sector update function */
+	W25Q_Write(page, offset, 4, tempBytes);
+}
+
+float W25Q_Read_NUM (uint32_t page, uint16_t offset)
+{
+	uint8_t rData[4];
+	W25Q_Read(page, offset, 4, rData);
+	return (Bytes2float(rData));
+}
+
+void W25Q_Write_32B (uint32_t page, uint16_t offset, uint32_t size, uint32_t *data)
+{
+	uint8_t data8[size*4];
+	uint32_t indx = 0;
+
+	for (uint32_t i=0; i<size; i++)
+	{
+		data8[indx++] = data[i]&0xFF;   // extract LSB
+		data8[indx++] = (data[i]>>8)&0xFF;
+		data8[indx++] = (data[i]>>16)&0xFF;
+		data8[indx++] = (data[i]>>24)&0xFF;
+	}
+
+	W25Q_Write(page, offset, indx, data8);
+}
+
+void W25Q_Read_32B (uint32_t page, uint16_t offset, uint32_t size, uint32_t *data)
+{
+	uint8_t data8[size*4];
+	uint32_t indx = 0;
+
+	W25Q_FastRead(page, offset, size*4, data8);
+
+	for (uint32_t i=0; i<size; i++)
+	{
+		data[i] = (data8[indx++]) | (data8[indx++]<<8) | (data8[indx++]<<16) | (data8[indx++]<<24);
+	}
+}
+
+

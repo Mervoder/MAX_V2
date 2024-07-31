@@ -120,6 +120,7 @@ uint8_t flash_gyroX[256]={0};
 uint8_t flash_gyroY[256]={0};
 uint8_t flash_gyroZ[256]={0};
 
+
 uint8_t loratx[LORA_TX_BUFFER_SIZE];
 uint8_t test[256];
 uint8_t lora_flag=0;
@@ -369,6 +370,7 @@ int main(void)
 
 
   lwgps_init(&gps);
+ // W25Q_Reset();
   LSM6DSLTR_Init();
   E220_CONFIG(0x6,0x4A,0X10,1);
   HAL_ADC_Start_IT(&hadc1);
@@ -389,12 +391,13 @@ int main(void)
 
   ////ALTITUDE OFFSET
    Altitude_Offset();
+   HAL_Delay(1000);
    KalmanFilter_Init(&kf, 0.005, 0.1, 0.0); // Adjust Q=0.01 idi and R based on your system characteristics
 
-
+   W25Q_Read(0, 0,  256, test);
 
  //  W25Q_Read(1, 0, sizeof(flash_accX), flash_accX);
-   buzzer_short = 1;
+   buzzer_short = 0;
 
   /* USER CODE END 2 */
 
@@ -446,9 +449,9 @@ int main(void)
 		 }
 
 		 magnetic_switch=HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13);
-		 if(magnetic_switch == 0) { buzzer_long=1; buzzer_short =0;}
+		 if(magnetic_switch == 0) { buzzer_long=0; buzzer_short =1;}
 		 else {
-			 buzzer_short=1;
+			 buzzer_short=0;
 			 buzzer_long =0;
 		 }
 
@@ -601,7 +604,7 @@ int main(void)
 			  altitude_rampa_control =1;
 		  }
 /*************************************************************************************/
-		  if(altitude>altitude_max) altitude_max = altitude;
+		  if(altitude>altitude_max) altitude_max = altitude_kalman;
 
 		  if(speed>speed_max) speed_max = speed;
 
@@ -616,25 +619,36 @@ int main(void)
 			  adc_pil_val=(float)( ( ( (adc/4095)*3.3)-1.41) / (1.99-1.41) ) *100 ; // pil conv
 		  }
 /**********************Flash Kayıt*********************************************************/
-//	if(flash_flag == 1 && SUSTAINER >=6 ) //
-//	{
+	if( i_flag == 1 && flash_flag == 1 && SUSTAINER >=6 ) //
+	{
+
+		W25Q_Write(page, 0, 256, flash_accX);
+		HAL_Delay(200);
+		page++;
+		W25Q_Write(page, 0, 256, flash_accY);
+		HAL_Delay(200);
+		page++;
+		W25Q_Write(page, 0, 256, flash_accZ);
+		HAL_Delay(200);
+		page++;
+		W25Q_Write(page, 0,256, flash_gyroX);
+		HAL_Delay(200);
+		page++;
+		W25Q_Write(page, 0, 256, flash_gyroY);
+		HAL_Delay(200);
+		page++;
+		W25Q_Write(page, 0,256, flash_gyroZ);
+		HAL_Delay(200);
+		page++;
+		W25Q_Write(page, 0,256, flash_altitude);
+		HAL_Delay(200);
+
+		W25Q_Read(page, 0,  256, test);
+
+		flash_flag=0;
+	}
 //
-//		W25Q_Write_Page(page, 0, sizeof(flash_accX), flash_accX);
-//		page++;
-//		W25Q_Write_Page(page, 0, sizeof(flash_accX), flash_accY);
-//		page++;
-//		W25Q_Write_Page(page, 0, sizeof(flash_accX), flash_accZ);
-//		page++;
-//		W25Q_Write_Page(page, 0, sizeof(flash_accX), flash_gyroX);
-//		page++;
-//		W25Q_Write_Page(page, 0, sizeof(flash_accX), flash_gyroY);
-//		page++;
-//		W25Q_Write_Page(page, 0, sizeof(flash_accX), flash_gyroZ);
-//
-//		flash_flag=0;
-//	}
-//
-	if(timer_200ms_flag == 1 && i_flag ==0 && SUSTAINER >=1)
+	if( timer_200ms_flag == 1 && i_flag ==0 /*&& SUSTAINER >=1*/)
 	{
 		if(i >= 252) {
 			i_flag=1;
@@ -658,6 +672,31 @@ int main(void)
 		flash_accZ[i+1] = conv.array[1];
 		flash_accZ[i+2] = conv.array[2];
 		flash_accZ[i+3] = conv.array[3];
+
+		conv.fVal=Lsm_Sensor.Gyro_X;
+		flash_gyroX[i] = conv.array[0];
+		flash_gyroX[i+1] = conv.array[1];
+		flash_gyroX[i+2] = conv.array[2];
+		flash_gyroX[i+3] = conv.array[3];
+
+		conv.fVal=Lsm_Sensor.Gyro_Y;
+		flash_gyroY[i] = conv.array[0];
+		flash_gyroY[i+1] = conv.array[1];
+		flash_gyroY[i+2] = conv.array[2];
+		flash_gyroY[i+3] = conv.array[3];
+
+		conv.fVal=Lsm_Sensor.Gyro_Z;
+		flash_gyroZ[i] = conv.array[0];
+		flash_gyroZ[i+1] = conv.array[1];
+		flash_gyroZ[i+2] = conv.array[2];
+		flash_gyroZ[i+3] = conv.array[3];
+
+		conv.fVal=altitude_kalman;
+		flash_altitude[i] = conv.array[0];
+		flash_altitude[i+1] = conv.array[1];
+		flash_altitude[i+2] = conv.array[2];
+		flash_altitude[i+3] = conv.array[3];
+
 
 
 		timer_200ms_flag =0;
