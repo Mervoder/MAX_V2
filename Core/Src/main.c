@@ -60,6 +60,7 @@ I2C_HandleTypeDef hi2c1;
 
 SPI_HandleTypeDef hspi1;
 
+TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim6;
 TIM_HandleTypeDef htim7;
 TIM_HandleTypeDef htim10;
@@ -112,13 +113,13 @@ uint8_t writeData[50] = {0,1,1,1};
 uint8_t readData[50] = {0};
 uint8_t i=0;
 uint8_t i_flag=0;
-uint8_t flash_altitude[256]={0};
-uint8_t flash_accX[256]={0};
-uint8_t flash_accZ[256]={0};
-uint8_t flash_accY[256]={0};
-uint8_t flash_gyroX[256]={0};
-uint8_t flash_gyroY[256]={0};
-uint8_t flash_gyroZ[256]={0};
+uint8_t flash_altitude[1024]={0};
+uint8_t flash_accX[1024]={0};
+uint8_t flash_accZ[1024]={0};
+uint8_t flash_accY[1024]={0};
+uint8_t flash_gyroX[1024]={0};
+uint8_t flash_gyroY[1024]={0};
+uint8_t flash_gyroZ[1024]={0};
 
 
 uint8_t loratx[LORA_TX_BUFFER_SIZE];
@@ -171,6 +172,7 @@ static void MX_TIM11_Init(void);
 static void MX_TIM10_Init(void);
 static void MX_TIM6_Init(void);
 static void MX_TIM7_Init(void);
+static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 int16_t I2C_Testsensor(void);
 int8_t user_i2c_read(uint8_t id, uint8_t reg_addr, uint8_t *data, uint16_t len);
@@ -242,27 +244,27 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 
-	if(htim==&htim11){ // 1 sn
+	if(htim==&htim2){ // 1 sn
    lora_flag=1;
 
-		if(buzzer_long ==1 && buzzer_long_counter>=2)
-		{
-			HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
-			buzzer_long_counter = 0;
-		}
-		buzzer_long_counter++;
+//		if(buzzer_long ==1 && buzzer_long_counter>=2)
+//		{
+//			HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
+//			buzzer_long_counter = 0;
+//		}
+//		buzzer_long_counter++;
 
 	}
 
 	if(htim==&htim10){ //30ms
 	sensor_flag=1;
 
-		if(buzzer_ariza ==1 && buzzer_ariza_counter>=3)
-		{
-			HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
-			buzzer_ariza_counter = 0;
-		}
-		buzzer_ariza_counter++;
+//		if(buzzer_ariza ==1 && buzzer_ariza_counter>=3)
+//		{
+//			HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
+//			buzzer_ariza_counter = 0;
+//		}
+//		buzzer_ariza_counter++;
 	}
 
 
@@ -270,14 +272,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	timer_200ms_flag = 1;
 	egu_durum_flag=1;
 
-		if(buzzer_short ==1 && buzzer_short_counter>=2)
-		{
-			HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
-			buzzer_short_counter = 0;
-		}
-		buzzer_short_counter++;
-
-		counter++;
+//		if(buzzer_short ==1 && buzzer_short_counter>=2)
+//		{
+//			HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
+//			buzzer_short_counter = 0;
+//		}
+//		buzzer_short_counter++;
+//
+//		counter++;
 		if(counter == 15)
 		{
 			adc_flag=1;
@@ -344,6 +346,7 @@ int main(void)
   MX_TIM10_Init();
   MX_TIM6_Init();
   MX_TIM7_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, GPIO_PIN_SET);
@@ -358,10 +361,11 @@ int main(void)
 
   HAL_UART_Receive_IT(&huart2,&rx_data,1);
   HAL_UART_Receive_IT(&huart6, &rx_data_EGU, 1);
-  HAL_TIM_Base_Start_IT(&htim11);
+  //HAL_TIM_Base_Start_IT(&htim11);
   HAL_TIM_Base_Start_IT(&htim10);
   HAL_TIM_Base_Start_IT(&htim6);
   HAL_TIM_Base_Stop_IT(&htim7);
+  HAL_TIM_Base_Start_IT(&htim2);
 
   MAFilter_Init(&accx);
   FIRFilter_Init(&IMU_GYROY);
@@ -390,11 +394,13 @@ int main(void)
   rslt = bme280_set_sensor_settings(BME280_OSR_PRESS_SEL | BME280_OSR_TEMP_SEL | BME280_OSR_HUM_SEL | BME280_FILTER_SEL, &dev);
 
   ////ALTITUDE OFFSET
+   HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
    Altitude_Offset();
    HAL_Delay(1000);
+   HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
    KalmanFilter_Init(&kf, 0.005, 0.1, 0.0); // Adjust Q=0.01 idi and R based on your system characteristics
 
-   W25Q_Read(0, 0,  256, test);
+   W25Q_Read(1, 0,  256, test);
 
  //  W25Q_Read(1, 0, sizeof(flash_accX), flash_accX);
    buzzer_short = 0;
@@ -449,11 +455,11 @@ int main(void)
 		 }
 
 		 magnetic_switch=HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13);
-		 if(magnetic_switch == 0) { buzzer_long=0; buzzer_short =1;}
-		 else {
-			 buzzer_short=0;
-			 buzzer_long =0;
-		 }
+//		 if(magnetic_switch == 0) { buzzer_long=0; buzzer_short =0;}
+//		 else {
+//			 buzzer_short=0;
+//			 buzzer_long =0;
+//		 }
 
 		 BUTTON_STATE=HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_9);
 
@@ -646,6 +652,7 @@ int main(void)
 		W25Q_Read(page, 0,  256, test);
 
 		flash_flag=0;
+		i_flag=0;
 	}
 //
 	if( timer_200ms_flag == 1 && i_flag ==0 /*&& SUSTAINER >=1*/)
@@ -879,6 +886,51 @@ static void MX_SPI1_Init(void)
   /* USER CODE BEGIN SPI1_Init 2 */
 
   /* USER CODE END SPI1_Init 2 */
+
+}
+
+/**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 8400-1;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 5000-1;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
 
 }
 
@@ -1253,7 +1305,7 @@ void E220_CONFIG(uint8_t ADDH, uint8_t ADDL, uint8_t CHN, uint8_t MODE)
 
     cfg_buff[0] = ADDH;
     cfg_buff[1] = ADDL;
-    cfg_buff[2] = 0x62;
+    cfg_buff[2] = 0x62;  // 62 2.4kbps 63 4.8 kpbs
     cfg_buff[3] = 0x00;
     cfg_buff[4] = CHN;
 
