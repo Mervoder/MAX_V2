@@ -244,7 +244,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 
-	if(htim==&htim2){ // 1 sn
+	if(htim==&htim11){ // 1 sn
    lora_flag=1;
 
 //		if(buzzer_long ==1 && buzzer_long_counter>=2)
@@ -300,7 +300,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 		adc= HAL_ADC_GetValue(&hadc1);
 
 
-		adc_flag = 0;
+		adc_flag = 1;
 	}
 }
 /**********************************************/
@@ -361,11 +361,11 @@ int main(void)
 
   HAL_UART_Receive_IT(&huart2,&rx_data,1);
   HAL_UART_Receive_IT(&huart6, &rx_data_EGU, 1);
-  //HAL_TIM_Base_Start_IT(&htim11);
+  HAL_TIM_Base_Start_IT(&htim11);
   HAL_TIM_Base_Start_IT(&htim10);
   HAL_TIM_Base_Start_IT(&htim6);
   HAL_TIM_Base_Stop_IT(&htim7);
-  HAL_TIM_Base_Start_IT(&htim2);
+  //HAL_TIM_Base_Start_IT(&htim2);
 
   MAFilter_Init(&accx);
   FIRFilter_Init(&IMU_GYROY);
@@ -479,8 +479,8 @@ int main(void)
 
 		union_converter();
 
-		loratx[49]=(uint8_t)adc_pil_val;
-		loratx[50]=v4_mod;
+		loratx[49]=v4_battery;
+		loratx[50]=0x31;// v4mod
 		loratx[51]=magnetic_switch;
 
 		////////EGU PART
@@ -623,6 +623,8 @@ int main(void)
 			  // 6V = 1755 adc val 1,41V
 			  // 8.4V = 2476 adc val 1,99V 0,58V
 			  adc_pil_val=(float)( ( ( (adc/4095)*3.3)-1.41) / (1.99-1.41) ) *100 ; // pil conv
+			  v4_battery=adc_pil_val;
+			  adc_flag=0;
 		  }
 /**********************Flash Kayıt*********************************************************/
 	if( i_flag == 1 && flash_flag == 1 && SUSTAINER >=6 ) //
@@ -910,7 +912,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 8400-1;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 5000-1;
+  htim2.Init.Period = 12000-1;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -1059,7 +1061,7 @@ static void MX_TIM11_Init(void)
   htim11.Instance = TIM11;
   htim11.Init.Prescaler = 16800;
   htim11.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim11.Init.Period = 10000-1;
+  htim11.Init.Period = 12000-1;
   htim11.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim11.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim11) != HAL_OK)
