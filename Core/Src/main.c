@@ -174,7 +174,7 @@ typedef union{
   unsigned char array[4];
 }float2unit8;
 
-KalmanFilter kf , na , pa;
+KalmanFilter kf , na , pa , ax,ay,az,gx,gy,gz;
 
 enum ZORLU2024
 {
@@ -387,7 +387,12 @@ int main(void)
   FIRFilter_Init(&IMU_GYROX);
   FIRFilter_Init(&IMU_GYROZ);
   FIRFilter_Init(&Normal);
-
+  KalmanFilter_Init(&ax, 0.2, 2, toplam_accX);
+  KalmanFilter_Init(&ay, 0.2, 2, toplam_accY);
+  KalmanFilter_Init(&az, 0.2, 2, toplam_accZ);
+  KalmanFilter_Init(&gx, 0.2, 2, toplam_gX);
+  KalmanFilter_Init(&gy, 0.2, 2, toplam_gY);
+  KalmanFilter_Init(&gz, 0.2, 2, toplam_gZ);
 
   lwgps_init(&gps);
  // W25Q_Reset();
@@ -410,10 +415,27 @@ int main(void)
   rslt = bme280_set_sensor_settings(BME280_OSR_PRESS_SEL | BME280_OSR_TEMP_SEL | BME280_OSR_HUM_SEL | BME280_FILTER_SEL, &dev);
 
   ////ALTITUDE OFFSET
+
+  for(int i = 0; i<5;i++)
+  {
+
+	      LSM6DSLTR_Read_Gyro_Data(&Lsm_Sensor);
+
+	      offset_x += Lsm_Sensor.Gyro_X;
+		  offset_y += Lsm_Sensor.Gyro_Y;
+		  offset_z += Lsm_Sensor.Gyro_Z;
+		  HAL_Delay(10);
+  }
+  offset_x=offset_x/5;
+  offset_y=offset_y/5;
+  offset_z=offset_z/5;
+
    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
    Altitude_Offset();
    HAL_Delay(1000);
    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
+
+
 
  //  W25Q_Read(1, 0,  256, test);
 
@@ -443,14 +465,19 @@ int main(void)
 	      LSM6DSLTR_Read_Accel_Data(&Lsm_Sensor);
 	      LSM6DSLTR_Read_Gyro_Data(&Lsm_Sensor);
 
-	      toplam_pitch += (-Lsm_Sensor.Pitch);
-	      toplam_roll += Lsm_Sensor.Roll;
-	      toplam_accX += Lsm_Sensor.Accel_X;
-	      toplam_accY += Lsm_Sensor.Accel_Y;
-	      toplam_accZ += Lsm_Sensor.Accel_Z;
-	      toplam_gX += Lsm_Sensor.Gyro_X ;
-	      toplam_gY += Lsm_Sensor.Gyro_Y ;
-	      toplam_gZ += Lsm_Sensor.Gyro_Z ;
+//	      toplam_accX += Lsm_Sensor.Accel_X;
+//	      toplam_accY += Lsm_Sensor.Accel_Y;
+//	      toplam_accZ += Lsm_Sensor.Accel_Z;
+//	      toplam_gX += Lsm_Sensor.Gyro_X ;
+//	      toplam_gY += Lsm_Sensor.Gyro_Y ;
+//	      toplam_gZ += Lsm_Sensor.Gyro_Z ;
+
+	      toplam_accX += KalmanFilter_Update(&ax,Lsm_Sensor.Accel_X);
+	      toplam_accY += KalmanFilter_Update(&ay,Lsm_Sensor.Accel_Y );
+	      toplam_accZ += KalmanFilter_Update(&az,Lsm_Sensor.Accel_Z );
+	      toplam_gX +=  KalmanFilter_Update(&gx,Lsm_Sensor.Gyro_X-offset_x  );
+	      toplam_gY +=  KalmanFilter_Update(&gy,Lsm_Sensor.Gyro_Y -offset_y );
+	      toplam_gZ +=  KalmanFilter_Update(&gz,Lsm_Sensor.Gyro_Z -offset_z );
 
 
 	      sensor_counter++;

@@ -47,7 +47,7 @@
 #define OUTZ_H_XL	0x2D
 
 
-#define ALPHA 0.99f // Filtre katsayısı
+#define ALPHA 0.98f // Filtre katsayısı
 
 
 typedef struct

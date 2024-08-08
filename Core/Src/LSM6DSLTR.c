@@ -27,10 +27,10 @@ void LSM6DSLTR_Init()
 	uint8_t data1;
 
 	// Gyro ve Accel interrupt pin 1 aktif
-	data1 = 0xA4; // 16G 6.66khz
+	data1 = 0x54; //A4 16G 6.66khz
 	HAL_I2C_Mem_Write(&hi2c1, LSM6DSL_Write_Address, CTRL1_XL, 1, &data1,  1, 1);
 
-	data1 = 0xA4; // 500 dps 6.6khz
+	data1 = 0x54; // A4 500 dps 6.6khz
 	HAL_I2C_Mem_Write(&hi2c1, LSM6DSL_Write_Address,CTRL2_G, 1, &data1, 1, 1);
 
 	data1= 0x00;
