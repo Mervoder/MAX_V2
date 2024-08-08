@@ -8,11 +8,18 @@
 
 #include "LSM6DSLTR.h"
 
+#define HP_FILTER_EN  0x40  // High-pass filter enable
+#define HP_FILTER_CUT_OFF 0x00 // Cutoff frequency for high-pass filter (e.g., 0x00 for 16 Hz)
+#define LP_FILTER_EN  0x40  // Low-pass filter enable
+#define LP_FILTER_CUT_OFF 0x02 // Cutoff frequency for low-pass filter (e.g., 0x00 for 400 Hz)
+
+
+
 float gyro_constant=0.01750;
 
 uint32_t prev_time = 0;
 
-extern LSM6DSLTR;
+//extern LSM6DSLTR;
 extern I2C_HandleTypeDef hi2c1;
 
 void LSM6DSLTR_Init()
@@ -20,9 +27,6 @@ void LSM6DSLTR_Init()
 	uint8_t data1;
 
 	// Gyro ve Accel interrupt pin 1 aktif
-	data1= 0x03;
-	HAL_I2C_Mem_Write(&hi2c1, LSM6DSL_Write_Address, INT1_CTR, 1, &data1, 1, 1);
-
 	data1 = 0xA4; // 16G 6.66khz
 	HAL_I2C_Mem_Write(&hi2c1, LSM6DSL_Write_Address, CTRL1_XL, 1, &data1,  1, 1);
 
@@ -34,6 +38,9 @@ void LSM6DSLTR_Init()
 
 	data1= 0x08;
 	HAL_I2C_Mem_Write(&hi2c1, LSM6DSL_Write_Address, CTRL4_C, 1, &data1, 1, 1);
+
+	data1 = 0x38;
+	HAL_I2C_Mem_Write(&hi2c1, LSM6DSL_Write_Address, CTRL10_C, 1, &data1, 1, 1);
 
 
 
@@ -126,6 +133,7 @@ void calculate_roll_pitch(LSM6DSLTR *Lsm_Sensor) {
     Lsm_Sensor->Roll = atan2f(Lsm_Sensor->Accel_Y, sqrtf(Lsm_Sensor->Accel_X * Lsm_Sensor->Accel_X + Lsm_Sensor->Accel_Z * Lsm_Sensor->Accel_Z)) * 180.0f / 3.14;
     Lsm_Sensor->Pitch = atan2f(-Lsm_Sensor->Accel_X, sqrtf(Lsm_Sensor->Accel_Y * Lsm_Sensor->Accel_Y + Lsm_Sensor->Accel_Z * Lsm_Sensor->Accel_Z)) * 180.0f / 3.14;
 }
+
 void update_angles(LSM6DSLTR *Lsm_Sensor) {
     uint32_t current_time = HAL_GetTick(); // Şu anki zamanı al
 
@@ -144,4 +152,35 @@ void update_angles(LSM6DSLTR *Lsm_Sensor) {
 }
 
 
+void calculate_gravity_normal(LSM6DSLTR *Lsm_Sensor) {
+    // İvmeölçer verilerinden roll ve pitch açılarını hesapla
+    float roll = atan2f(Lsm_Sensor->Accel_Y, sqrtf(Lsm_Sensor->Accel_X * Lsm_Sensor->Accel_X + Lsm_Sensor->Accel_Z * Lsm_Sensor->Accel_Z)) * 180.0f / M_PI;
+    float pitch = atan2f(-Lsm_Sensor->Accel_X, sqrtf(Lsm_Sensor->Accel_Y * Lsm_Sensor->Accel_Y + Lsm_Sensor->Accel_Z * Lsm_Sensor->Accel_Z)) * 180.0f / M_PI;
 
+    // Açıları güncelle
+    Lsm_Sensor->Roll = roll;
+    Lsm_Sensor->Pitch = pitch;
+
+    // Yerçekimi normali açısını hesapla (Roll ve Pitch açıları kullanılarak)
+    // Normalde bu, roll ve pitch açılarının kombinasyonu ile hesaplanır
+    // Örneğin:
+    // Yerçekimi normali açısını hesaplamak için roll ve pitch açılarını kullanabiliriz
+    float gravity_normal_angle = sqrtf(roll * roll + pitch * pitch);
+
+    // Yerçekimi normali açısını kaydet
+    Lsm_Sensor->Normal = gravity_normal_angle;
+}
+
+
+
+void update_angles_and_gravity(LSM6DSLTR *Lsm_Sensor) {
+    // İvmeölçer ve jiroskop verilerini oku
+    LSM6DSLTR_Read_Accel_Data(Lsm_Sensor);
+    LSM6DSLTR_Read_Gyro_Data(Lsm_Sensor);
+
+    // Roll ve pitch açılarını güncelle
+    update_angles(Lsm_Sensor);
+
+    // Yerçekimi normali açısını hesapla
+    calculate_gravity_normal(Lsm_Sensor);
+}

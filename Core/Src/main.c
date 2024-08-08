@@ -31,6 +31,7 @@
 #include "stdio.h"
 #include "string.h"
 #include "kalman.h"
+#include "mahony.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -46,6 +47,11 @@
 #define DEVICE_ID 2
 
 
+#define GyroAlfa	0.2 //0.01
+#define AccAlfa		0.4 // 0.1
+#define HP_alpha 	0.92f // 0.8 en iyi
+#define LP_alpha 	0.55f // 0.4 en iyi
+#define beta		0.85
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -141,7 +147,26 @@ float prev_alt=0;
 float speed=0, speed_max=0;;
 float altitude_kalman;
 
-float real_pitch, real_roll , toplam_pitch,toplam_roll , x_max;
+float real_pitch, real_roll , toplam_pitch,toplam_roll , toplam_accX , toplam_accY , toplam_accZ, toplam_gX,toplam_gY,toplam_gZ ,
+	  toplam_normal,real_normal, x_max;
+float offset_x,offset_y,offset_z, gyroX_prev, gyroY_prev,gyroZ_prev,
+	  accX_prev, accY_prev,accZ_prev;
+float filtered_gyroX ,filtered_gyroY,filtered_gyroZ, filtered_accX,
+	  filtered_accY,filtered_accZ;
+float filtered_gyro[3] , filtered_gyro_HP[3];
+float filtered_acc_LP[3] , filtered_acc[3];
+float gravity_normal_angle;
+
+float gyroX_HP_prev = 0.0f, gyroY_HP_prev = 0.0f, gyroZ_HP_prev = 0.0f;
+float filtered_gyro_HP_X = 0.0f, filtered_gyro_HP_Y = 0.0f, filtered_gyro_HP_Z = 0.0f;
+
+float gyroX_LP_prev = 0.0f, gyroY_LP_prev = 0.0f, gyroZ_LP_prev = 0.0f , filtered_gyro_LP[3];
+
+
+
+float prev_time1;
+
+
 uint8_t  sensor_counter =0;
 
 typedef union{
@@ -149,13 +174,16 @@ typedef union{
   unsigned char array[4];
 }float2unit8;
 
-KalmanFilter kf;
+KalmanFilter kf , na , pa;
 
 enum ZORLU2024
 {
 	RAMPA,UCUS_BASLADI,KADEMEAYRILDIMI,AYRILDI,APOGEE,SUSTAINER_ANA,FINISH
 };
 enum ZORLU2024 SUSTAINER;
+
+
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -186,6 +214,7 @@ void Buzzer(int how_many , uint32_t how_long);
 void Altitude_Offset();
 void Flash_toplu_temizleme(int page);
 
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -199,6 +228,9 @@ FIRFilter accx;
 FIRFilter IMU_GYROX;
 FIRFilter IMU_GYROY;
 FIRFilter IMU_GYROZ;
+FIRFilter Normal;
+
+MahonyAHRS mahony;
 
 struct bme280_dev dev;
 struct bme280_data comp_data;
@@ -247,24 +279,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	if(htim==&htim11){ // 1 sn
    lora_flag=1;
 
-//		if(buzzer_long ==1 && buzzer_long_counter>=2)
-//		{
-//			HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
-//			buzzer_long_counter = 0;
-//		}
-//		buzzer_long_counter++;
 
 	}
 
 	if(htim==&htim10){ //30ms
 	sensor_flag=1;
 
-//		if(buzzer_ariza ==1 && buzzer_ariza_counter>=3)
-//		{
-//			HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
-//			buzzer_ariza_counter = 0;
-//		}
-//		buzzer_ariza_counter++;
+
 	}
 
 
@@ -272,14 +293,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	timer_200ms_flag = 1;
 	egu_durum_flag=1;
 
-//		if(buzzer_short ==1 && buzzer_short_counter>=2)
-//		{
-//			HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
-//			buzzer_short_counter = 0;
-//		}
-//		buzzer_short_counter++;
-//
-//		counter++;
+
 		if(counter == 15)
 		{
 			adc_flag=1;
@@ -310,6 +324,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 /**
   * @brief  The application entry point.
   * @retval int
+  *
   */
 int main(void)
 {
@@ -351,7 +366,7 @@ int main(void)
 
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_1, GPIO_PIN_SET);
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2, GPIO_PIN_SET);
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
 
   ///KURTARMA PORTLARI KAPALI EMIN OL
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, GPIO_PIN_RESET);//A
@@ -371,6 +386,7 @@ int main(void)
   FIRFilter_Init(&IMU_GYROY);
   FIRFilter_Init(&IMU_GYROX);
   FIRFilter_Init(&IMU_GYROZ);
+  FIRFilter_Init(&Normal);
 
 
   lwgps_init(&gps);
@@ -398,9 +414,10 @@ int main(void)
    Altitude_Offset();
    HAL_Delay(1000);
    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
-   KalmanFilter_Init(&kf, 0.005, 0.1, 0.0); // Adjust Q=0.01 idi and R based on your system characteristics
 
-   W25Q_Read(1, 0,  256, test);
+ //  W25Q_Read(1, 0,  256, test);
+
+
 
  //  W25Q_Read(1, 0, sizeof(flash_accX), flash_accX);
    buzzer_short = 0;
@@ -413,58 +430,101 @@ int main(void)
   {
 
 /********************* Sensor Ölçüm **************************************************/
-	if(sensor_flag==1)
-	{
-		 sensor_flag=0;
-		 prev_alt=altitude_kalman;
-		 rslt = bme280_set_sensor_mode(BME280_FORCED_MODE, &dev);
-		/* �?��?�터 취�? */
-		rslt = bme280_get_sensor_data(BME280_ALL, &comp_data, &dev);
 
-		if(rslt == BME280_OK)
-		{
-		  temperature = comp_data.temperature/100.00;
-		  humidity = comp_data.humidity;
-		  pressure = comp_data.pressure;
-		  altitude=BME280_Get_Altitude()-offset_altitude;
-		  altitude_kalman= KalmanFilter_Update(&kf, altitude);
-		  speed=(altitude_kalman-prev_alt)*20;
-    	}
-
-		 LSM6DSLTR_Read_Accel_Data(&Lsm_Sensor);
-		 calculate_roll_pitch(&Lsm_Sensor);
-		 LSM6DSLTR_Read_Gyro_Data(&Lsm_Sensor);
-		 update_angles(&Lsm_Sensor);
-
-		 Lsm_Sensor.Accel_X=FIRFilter_Update(&accx,  Lsm_Sensor.Accel_X);
-		 Lsm_Sensor.Gyro_X=FIRFilter_Update(&IMU_GYROX,  Lsm_Sensor.Gyro_X);
-		 Lsm_Sensor.Gyro_Y=FIRFilter_Update(&IMU_GYROY, Lsm_Sensor.Gyro_Y);
-		 Lsm_Sensor.Gyro_Z=FIRFilter_Update(&IMU_GYROZ, Lsm_Sensor.Gyro_Z);
-
-		 toplam_pitch+= Lsm_Sensor.Pitch;
-		 toplam_roll+= Lsm_Sensor.Roll;
-
-		 sensor_counter++;
-		 if(sensor_counter == 6)
-		 {
-			 real_pitch = toplam_pitch/6;
-			 real_roll = toplam_roll/6;
-			 toplam_roll=0;
-			 toplam_pitch=0;
-			 sensor_counter =0;
-		 }
-
-		 magnetic_switch=HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13);
-//		 if(magnetic_switch == 0) { buzzer_long=0; buzzer_short =0;}
-//		 else {
-//			 buzzer_short=0;
-//			 buzzer_long =0;
-//		 }
-
-		 BUTTON_STATE=HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_9);
+	  if(sensor_flag == 1)
+	  {
+	      sensor_flag = 0;
+	      prev_alt = altitude;
+	      rslt = bme280_set_sensor_mode(BME280_FORCED_MODE, &dev);
+	      rslt = bme280_get_sensor_data(BME280_ALL, &comp_data, &dev);
 
 
-	}
+
+	      LSM6DSLTR_Read_Accel_Data(&Lsm_Sensor);
+	      LSM6DSLTR_Read_Gyro_Data(&Lsm_Sensor);
+
+	      toplam_pitch += (-Lsm_Sensor.Pitch);
+	      toplam_roll += Lsm_Sensor.Roll;
+	      toplam_accX += Lsm_Sensor.Accel_X;
+	      toplam_accY += Lsm_Sensor.Accel_Y;
+	      toplam_accZ += Lsm_Sensor.Accel_Z;
+	      toplam_gX += Lsm_Sensor.Gyro_X ;
+	      toplam_gY += Lsm_Sensor.Gyro_Y ;
+	      toplam_gZ += Lsm_Sensor.Gyro_Z ;
+
+
+	      sensor_counter++;
+	      if(sensor_counter == 10)
+	      {
+
+		      if(rslt == BME280_OK )
+		      {
+		          temperature = comp_data.temperature / 100.00;
+		          humidity = comp_data.humidity;
+		          pressure = comp_data.pressure;
+		          altitude = BME280_Get_Altitude() - offset_altitude;
+		          altitude_kalman = KalmanFilter_Update(&kf, altitude);
+		          speed = (altitude - prev_alt) * 3.33;
+		      }
+
+
+				  // High pass filter for gyroscope data
+//			  filtered_gyro_HP_X = HP_alpha * (gyroX_HP_prev + toplam_gX/10.0f - gyroX_HP_prev);
+//			  filtered_gyro_HP_Y = HP_alpha * (gyroY_HP_prev + toplam_gY/10.0f - gyroY_HP_prev);
+//			  filtered_gyro_HP_Z = HP_alpha * (gyroZ_HP_prev + toplam_gZ/10.0f - gyroZ_HP_prev);
+
+			  filtered_gyro_LP[0] = LP_alpha * toplam_gX/10.0f + (1.0 - LP_alpha) * gyroX_LP_prev;
+			  filtered_gyro_LP[1] = LP_alpha * toplam_gY/10.0f + (1.0 - LP_alpha) * gyroY_LP_prev ;
+			  filtered_gyro_LP[2] = LP_alpha * toplam_gZ/10.0f + (1.0 - LP_alpha) * gyroZ_LP_prev;
+
+			/***************************Silinebilir ********************************/
+			  filtered_gyro_HP_X = beta * (gyroX_HP_prev +  filtered_gyro_LP[0] - gyroX_LP_prev);
+			  filtered_gyro_HP_Y = beta * (gyroY_HP_prev + filtered_gyro_LP[1] - gyroY_LP_prev);
+			  filtered_gyro_HP_Z = beta * (gyroZ_HP_prev +  filtered_gyro_LP[2] - gyroZ_LP_prev);
+
+
+			  gyroX_LP_prev =  filtered_gyro_LP[0];
+			  gyroY_LP_prev =  filtered_gyro_LP[1];
+			  gyroZ_LP_prev =  filtered_gyro_LP[2];
+
+			  // Low pass filter for accelerometer data
+			  filtered_acc_LP[0] = LP_alpha * filtered_acc_LP[0] + (1 - LP_alpha) *  toplam_accX / 10.0;
+			  filtered_acc_LP[1] = LP_alpha * filtered_acc_LP[1] + (1 - LP_alpha) *  toplam_accY / 10.0;
+			  filtered_acc_LP[2] = LP_alpha * filtered_acc_LP[2] + (1 - LP_alpha) *  toplam_accZ / 10.0;
+
+			  gyroX_HP_prev = filtered_gyro_HP_X;
+			  gyroY_HP_prev = filtered_gyro_HP_Y;
+			  gyroZ_HP_prev = filtered_gyro_HP_Z;
+
+
+			  real_roll = atan2f(filtered_acc_LP[1], sqrtf(filtered_acc_LP[0] * filtered_acc_LP[0] + filtered_acc_LP[2] * filtered_acc_LP[2] +  1e-10)) * 180.0f / 3.14;
+			  real_pitch = atan2f(-filtered_acc_LP[0], sqrtf(filtered_acc_LP[1] * filtered_acc_LP[1] + filtered_acc_LP[2] * filtered_acc_LP[2]+ 1e-10)) * 180.0f / 3.14;
+
+			  uint32_t current_time = HAL_GetTick(); // current time
+			  float dt = (current_time - prev_time1) / 1000.0f;
+
+			  real_roll = ALPHA * (real_roll + filtered_gyro_HP_X * dt) + (1 - ALPHA) * real_roll;
+			  real_pitch = ALPHA * (real_pitch + filtered_gyro_HP_Y * dt) + (1 - ALPHA) * real_pitch;
+
+			  prev_time1 = current_time;
+			  gravity_normal_angle = sqrtf(real_roll * real_roll + real_pitch * real_pitch);
+
+			  toplam_roll = 0;
+			  toplam_pitch = 0;
+			  toplam_accX = 0;
+			  toplam_accY = 0;
+			  toplam_accZ = 0;
+			  toplam_gX = 0;
+			  toplam_gY = 0;
+			  toplam_gZ = 0;
+			  sensor_counter = 0;
+	      }
+
+	      magnetic_switch = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_14);
+	      BUTTON_STATE = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_9);
+	  }
+
+
 
 /********************Lora Ayar ve Gönderme*****************************************************/
 	if(lora_flag==1)
@@ -486,7 +546,8 @@ int main(void)
 		////////EGU PART
 		EGU_Buff_Load();
 
-		HAL_UART_Transmit_IT(&huart3,loratx,sizeof(loratx));
+		//HAL_UART_Transmit_IT(&huart3,loratx,sizeof(loratx));
+		HAL_UART_Transmit(&huart3,loratx,sizeof(loratx), 1000);
 
 	}
 
@@ -610,7 +671,7 @@ int main(void)
 			  altitude_rampa_control =1;
 		  }
 /*************************************************************************************/
-		  if(altitude>altitude_max) altitude_max = altitude_kalman;
+		  if(altitude>altitude_max) altitude_max = altitude;
 
 		  if(speed>speed_max) speed_max = speed;
 
@@ -622,40 +683,41 @@ int main(void)
 			  if(adc < 1755) adc = 1755;
 			  // 6V = 1755 adc val 1,41V
 			  // 8.4V = 2476 adc val 1,99V 0,58V
-			  adc_pil_val=(float)( ( ( (adc/4095)*3.3)-1.41) / (1.99-1.41) ) *100 ; // pil conv
+			 adc_pil_val=(float)( ( ( (adc/4095)*3.3)-1.41) / (1.99-1.41) ) *100 ; // pil conv
+			 // adc_pil_val = (adc-1755)/(2746-1755)*100;
 			  v4_battery=adc_pil_val;
 			  adc_flag=0;
 		  }
 /**********************Flash Kayıt*********************************************************/
-	if( i_flag == 1 && flash_flag == 1 && SUSTAINER >=6 ) //
-	{
-
-		W25Q_Write(page, 0, 256, flash_accX);
-		HAL_Delay(200);
-		page++;
-		W25Q_Write(page, 0, 256, flash_accY);
-		HAL_Delay(200);
-		page++;
-		W25Q_Write(page, 0, 256, flash_accZ);
-		HAL_Delay(200);
-		page++;
-		W25Q_Write(page, 0,256, flash_gyroX);
-		HAL_Delay(200);
-		page++;
-		W25Q_Write(page, 0, 256, flash_gyroY);
-		HAL_Delay(200);
-		page++;
-		W25Q_Write(page, 0,256, flash_gyroZ);
-		HAL_Delay(200);
-		page++;
-		W25Q_Write(page, 0,256, flash_altitude);
-		HAL_Delay(200);
-
-		W25Q_Read(page, 0,  256, test);
-
-		flash_flag=0;
-		i_flag=0;
-	}
+//	if( i_flag == 1 && flash_flag == 1 && SUSTAINER >=6 ) //
+//	{
+//
+//		W25Q_Write(page, 0, 256, flash_accX);
+//		HAL_Delay(200);
+//		page++;
+//		W25Q_Write(page, 0, 256, flash_accY);
+//		HAL_Delay(200);
+//		page++;
+//		W25Q_Write(page, 0, 256, flash_accZ);
+//		HAL_Delay(200);
+//		page++;
+//		W25Q_Write(page, 0,256, flash_gyroX);
+//		HAL_Delay(200);
+//		page++;
+//		W25Q_Write(page, 0, 256, flash_gyroY);
+//		HAL_Delay(200);
+//		page++;
+//		W25Q_Write(page, 0,256, flash_gyroZ);
+//		HAL_Delay(200);
+//		page++;
+//		W25Q_Write(page, 0,256, flash_altitude);
+//		HAL_Delay(200);
+//
+//		W25Q_Read(page, 0,  256, test);
+//
+//		flash_flag=0;
+//		i_flag=0;
+//	}
 //
 	if( timer_200ms_flag == 1 && i_flag ==0 /*&& SUSTAINER >=1*/)
 	{
@@ -1061,7 +1123,7 @@ static void MX_TIM11_Init(void)
   htim11.Instance = TIM11;
   htim11.Init.Prescaler = 16800;
   htim11.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim11.Init.Period = 12000-1;
+  htim11.Init.Period = 7000-1;
   htim11.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim11.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim11) != HAL_OK)
@@ -1224,26 +1286,26 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14|CS_Pin|Buzzer_Pin|GATE_D_Pin
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13|CS_Pin|Buzzer_Pin|GATE_D_Pin
                           |GATE_C_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, M0_Pin|M1_Pin|FN_Pin|LED2_Pin
                           |LED1_Pin|GATE_B_Pin|GATE_A_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : PC13 */
-  GPIO_InitStruct.Pin = GPIO_PIN_13;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : PC14 CS_Pin Buzzer_Pin GATE_D_Pin
+  /*Configure GPIO pins : PC13 CS_Pin Buzzer_Pin GATE_D_Pin
                            GATE_C_Pin */
-  GPIO_InitStruct.Pin = GPIO_PIN_14|CS_Pin|Buzzer_Pin|GATE_D_Pin
+  GPIO_InitStruct.Pin = GPIO_PIN_13|CS_Pin|Buzzer_Pin|GATE_D_Pin
                           |GATE_C_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PC14 */
+  GPIO_InitStruct.Pin = GPIO_PIN_14;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pins : M0_Pin M1_Pin FN_Pin LED2_Pin
@@ -1433,7 +1495,7 @@ void union_converter(void)
 		 }
 
 	 float2unit8 f2u8_roll;
-	 f2u8_roll.fVal=real_roll;
+	 f2u8_roll.fVal=gravity_normal_angle;// real roll
 		 for(uint8_t i=0;i<4;i++)
 		 {
 			loratx[i+41]=f2u8_roll.array[i];
@@ -1488,7 +1550,7 @@ void Buzzer(int how_many , uint32_t how_long)
 
 void Altitude_Offset()
 {
-	for(uint8_t i=0;i<5;i++)
+	for(uint8_t i=0;i<10;i++)
 	{
 		HAL_Delay(40);
 	  rslt = bme280_set_sensor_mode(BME280_FORCED_MODE, &dev);
@@ -1507,6 +1569,12 @@ void Flash_toplu_temizleme(int page)
 		HAL_Delay(500);
 		}
 }
+
+
+
+
+
+
 
 /* USER CODE END 4 */
 

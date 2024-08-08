@@ -47,7 +47,7 @@
 #define OUTZ_H_XL	0x2D
 
 
-#define ALPHA 0.98f // Filtre katsayısı
+#define ALPHA 0.99f // Filtre katsayısı
 
 
 typedef struct
@@ -61,6 +61,7 @@ typedef struct
 	volatile float Roll;
 	volatile float Pitch;
 	volatile float Yaw;
+	volatile float Normal;
 
 }LSM6DSLTR;
 
@@ -72,6 +73,6 @@ void LSM6DSLTR_Read_Gyro_Data(LSM6DSLTR* Lsm_Sensor);
 void calculate_roll_pitch(LSM6DSLTR *Lsm_Sensor);
 void update_angles(LSM6DSLTR *Lsm_Sensor);
 int IS_MPU_READY();
-
+void update_angles_and_gravity(LSM6DSLTR *Lsm_Sensor);
 
 #endif /* INC_LSM6DSLTR_H_ */
