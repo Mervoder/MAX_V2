@@ -596,6 +596,7 @@ int main(void)
 				{
 					SUSTAINER=UCUS_BASLADI;
 					kontrol_number=0;
+					HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
 				}
 
 			  break;
@@ -623,7 +624,7 @@ int main(void)
 				if((magnetic_switch==0) && TIM7->CNT >= 45000 && altitude_rampa_control == 1)
 				{
 					kontrol_number++;
-					  if(kontrol_number%5 ==0)HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
+					 // if(kontrol_number%5 ==0)HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
 //				  Buzzer(10, 100);
 				}
 
@@ -663,8 +664,9 @@ int main(void)
 				{
 					SUSTAINER=SUSTAINER_ANA;
 					altitude_rampa_control =0;
-					HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, SET);
+					HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, SET);
 					kontrol_number=0;
+					HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
 				}
 
 
@@ -684,9 +686,9 @@ int main(void)
 				if(kontrol_number >10)
 				{
 				SUSTAINER=FINISH;
-				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_11, SET);
-				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, RESET);
-
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, SET);
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, RESET);
+				HAL_Delay(50);
 					kontrol_number=0;
 					flash_flag=1;
 				}
@@ -699,7 +701,7 @@ int main(void)
 				v4_mod=7;
 					  //KURTARMA GERÇEKLE�?Tİ VERİ KAYDETMEYİ BIRAK VE BUZZERI AÇ
 
-				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_11, RESET);
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, RESET);
 
 			  break;
 		  }
