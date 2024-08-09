@@ -31,7 +31,7 @@
 #include "stdio.h"
 #include "string.h"
 #include "kalman.h"
-#include "mahony.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -134,7 +134,7 @@ uint8_t lora_flag=0;
 uint8_t sensor_flag=0;
 uint8_t egu_durum_flag=0;
 uint8_t egu_ok=0;
-uint8_t kontrol_number=0;
+int kontrol_number=0;
 
 float temperature=0;
 float humidity=0;
@@ -230,7 +230,7 @@ FIRFilter IMU_GYROY;
 FIRFilter IMU_GYROZ;
 FIRFilter Normal;
 
-MahonyAHRS mahony;
+
 
 struct bme280_dev dev;
 struct bme280_data comp_data;
@@ -592,7 +592,7 @@ int main(void)
 					kontrol_number++;
 //					Buzzer(6, 300);
 				  }
-				if(kontrol_number >4)
+				if(kontrol_number >1000)
 				{
 					SUSTAINER=UCUS_BASLADI;
 					kontrol_number=0;
@@ -624,11 +624,10 @@ int main(void)
 				if((magnetic_switch==0) && TIM7->CNT >= 45000 && altitude_rampa_control == 1)
 				{
 					kontrol_number++;
-					 // if(kontrol_number%5 ==0)HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
-//				  Buzzer(10, 100);
+
 				}
 
-				if(kontrol_number >10)
+				if(kontrol_number >1000)
 				{
 					 SUSTAINER=AYRILDI;
 					kontrol_number=0;
