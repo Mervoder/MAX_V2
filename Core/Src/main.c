@@ -134,7 +134,7 @@ uint8_t lora_flag=0;
 uint8_t sensor_flag=0;
 uint8_t egu_durum_flag=0;
 uint8_t egu_ok=0;
-
+uint8_t kontrol_number=0;
 
 float temperature=0;
 float humidity=0;
@@ -324,7 +324,6 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 /**
   * @brief  The application entry point.
   * @retval int
-  *
   */
 int main(void)
 {
@@ -465,12 +464,6 @@ int main(void)
 	      LSM6DSLTR_Read_Accel_Data(&Lsm_Sensor);
 	      LSM6DSLTR_Read_Gyro_Data(&Lsm_Sensor);
 
-//	      toplam_accX += Lsm_Sensor.Accel_X;
-//	      toplam_accY += Lsm_Sensor.Accel_Y;
-//	      toplam_accZ += Lsm_Sensor.Accel_Z;
-//	      toplam_gX += Lsm_Sensor.Gyro_X ;
-//	      toplam_gY += Lsm_Sensor.Gyro_Y ;
-//	      toplam_gZ += Lsm_Sensor.Gyro_Z ;
 
 	      toplam_accX += KalmanFilter_Update(&ax,Lsm_Sensor.Accel_X);
 	      toplam_accY += KalmanFilter_Update(&ay,Lsm_Sensor.Accel_Y );
@@ -504,7 +497,7 @@ int main(void)
 			  filtered_gyro_LP[1] = LP_alpha * toplam_gY/10.0f + (1.0 - LP_alpha) * gyroY_LP_prev ;
 			  filtered_gyro_LP[2] = LP_alpha * toplam_gZ/10.0f + (1.0 - LP_alpha) * gyroZ_LP_prev;
 
-			/***************************Silinebilir ********************************/
+			/*************************** ********************************/
 			  filtered_gyro_HP_X = beta * (gyroX_HP_prev +  filtered_gyro_LP[0] - gyroX_LP_prev);
 			  filtered_gyro_HP_Y = beta * (gyroY_HP_prev + filtered_gyro_LP[1] - gyroY_LP_prev);
 			  filtered_gyro_HP_Z = beta * (gyroZ_HP_prev +  filtered_gyro_LP[2] - gyroZ_LP_prev);
@@ -573,8 +566,8 @@ int main(void)
 		////////EGU PART
 		EGU_Buff_Load();
 
-		//HAL_UART_Transmit_IT(&huart3,loratx,sizeof(loratx));
-		HAL_UART_Transmit(&huart3,loratx,sizeof(loratx), 1000);
+		HAL_UART_Transmit_IT(&huart3,loratx,sizeof(loratx));
+		//HAL_UART_Transmit(&huart3,loratx,sizeof(loratx), 1000);
 
 	}
 
@@ -596,9 +589,14 @@ int main(void)
 
 				if(Lsm_Sensor.Accel_X > 5 )
 				  {
-					SUSTAINER=UCUS_BASLADI;
+					kontrol_number++;
 //					Buzzer(6, 300);
 				  }
+				if(kontrol_number >4)
+				{
+					SUSTAINER=UCUS_BASLADI;
+					kontrol_number=0;
+				}
 
 			  break;
 
@@ -624,9 +622,15 @@ int main(void)
 				 * */
 				if((magnetic_switch==0) && TIM7->CNT >= 45000 && altitude_rampa_control == 1)
 				{
-				  SUSTAINER=AYRILDI;
-
+					kontrol_number++;
+					  if(kontrol_number%5 ==0)HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
 //				  Buzzer(10, 100);
+				}
+
+				if(kontrol_number >10)
+				{
+					 SUSTAINER=AYRILDI;
+					kontrol_number=0;
 				}
 
 			 break;
@@ -649,16 +653,18 @@ int main(void)
 					  //AYRILMA GERÇEKLE�?MESE BİLE APOGEE İLE ROKETİ KURTAR *ucus basladı kısmına timer kuracam ona göre ayrıldımıdan APOGEEya geçecek
 
 
-				if((real_pitch <= 32) && speed <= 2 && altitude < altitude_max )
+				if(Lsm_Sensor.Accel_X <0 &&  altitude < altitude_max && real_pitch <=70 )
 				{
 					// GPIO
-
-					HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, SET);
-
-
-
+					kontrol_number++;
+					 if(kontrol_number%5 ==0)HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
+				}
+				if(kontrol_number >10)
+				{
 					SUSTAINER=SUSTAINER_ANA;
 					altitude_rampa_control =0;
+					HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, SET);
+					kontrol_number=0;
 				}
 
 
@@ -671,15 +677,21 @@ int main(void)
 				if(altitude <= 500 && speed < 0  && altitude_rampa_control == 0 )
 				{
 					// GPIO
-					HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, RESET);
 
-					HAL_GPIO_WritePin(GPIOC, GPIO_PIN_11, SET);
+					kontrol_number++;
 
-					HAL_GPIO_WritePin(GPIOC, GPIO_PIN_11, RESET);
+				}
+				if(kontrol_number >10)
+				{
+				SUSTAINER=FINISH;
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_11, SET);
+				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, RESET);
 
-					SUSTAINER=FINISH;
+					kontrol_number=0;
 					flash_flag=1;
 				}
+
+
 
 			  break;
 
@@ -687,13 +699,14 @@ int main(void)
 				v4_mod=7;
 					  //KURTARMA GERÇEKLE�?Tİ VERİ KAYDETMEYİ BIRAK VE BUZZERI AÇ
 
+				HAL_GPIO_WritePin(GPIOC, GPIO_PIN_11, RESET);
 
 			  break;
 		  }
 
 
 /**************************************************************************************/
-		  if(altitude >30 && SUSTAINER <3)
+		  if(altitude >100 && SUSTAINER <3)
 		  {
 			  altitude_rampa_control =1;
 		  }
