@@ -41,7 +41,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define LORA_TX_BUFFER_SIZE 70
+#define LORA_TX_BUFFER_SIZE 75
 #define EGU_RX_BUFFER_SIZE 34
 #define RX_BUFFER_SIZE 128
 #define DEVICE_ID 2
@@ -134,7 +134,8 @@ uint8_t lora_flag=0;
 uint8_t sensor_flag=0;
 uint8_t egu_durum_flag=0;
 uint8_t egu_ok=0;
-int kontrol_number=0;
+int kontrol_number=0 , speed_time, speed_time_prev;
+int new_data=0;
 
 float temperature=0;
 float humidity=0;
@@ -164,7 +165,7 @@ float gyroX_LP_prev = 0.0f, gyroY_LP_prev = 0.0f, gyroZ_LP_prev = 0.0f , filtere
 
 
 
-float prev_time1;
+float looptime, prev_time1;
 
 
 uint8_t  sensor_counter =0;
@@ -392,6 +393,7 @@ int main(void)
   KalmanFilter_Init(&gx, 0.2, 2, toplam_gX);
   KalmanFilter_Init(&gy, 0.2, 2, toplam_gY);
   KalmanFilter_Init(&gz, 0.2, 2, toplam_gZ);
+  KalmanFilter_Init(&kf, 0.2, 1, toplam_gZ);
 
   lwgps_init(&gps);
  // W25Q_Reset();
@@ -484,7 +486,9 @@ int main(void)
 		          pressure = comp_data.pressure;
 		          altitude = BME280_Get_Altitude() - offset_altitude;
 		          altitude_kalman = KalmanFilter_Update(&kf, altitude);
-		          speed = (altitude - prev_alt) * 3.33;
+		          speed_time = (HAL_GetTick()-speed_time_prev)/1000.0f;
+		          speed = (altitude - prev_alt) * speed_time;
+		          speed_time_prev = speed_time;
 		      }
 
 
@@ -538,6 +542,7 @@ int main(void)
 			  toplam_gY = 0;
 			  toplam_gZ = 0;
 			  sensor_counter = 0;
+			  new_data =1;
 	      }
 
 	      magnetic_switch = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_14);
@@ -563,6 +568,8 @@ int main(void)
 		loratx[50]=0x31;// v4mod
 		loratx[51]=magnetic_switch;
 
+		loratx[73] = v4_mod;
+
 		////////EGU PART
 		EGU_Buff_Load();
 
@@ -584,123 +591,117 @@ int main(void)
 		  switch(SUSTAINER){
 
 		  case RAMPA:
-				v4_mod=1;
-			  //RAMPA MODU ROKET RAMPADA EGÜ SWİTCHLERİ VE ALT KADEME HABERLE�?ME KONTROL ET
+						v4_mod=1;
+					  //RAMPA MODU ROKET RAMPADA EGÜ SWİTCHLERİ VE ALT KADEME HABERLE�?ME KONTROL ET
 
-				if(Lsm_Sensor.Accel_X > 5 )
-				  {
-					kontrol_number++;
-//					Buzzer(6, 300);
-				  }
-				if(kontrol_number >1000)
-				{
-					SUSTAINER=UCUS_BASLADI;
-					kontrol_number=0;
-					HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
-				}
+						if(Lsm_Sensor.Accel_X > 5 && new_data == 1 )
+						  {
+							kontrol_number++;
+							new_data =0;
+
+						  }
+						if(kontrol_number >10)
+						{
+							SUSTAINER=UCUS_BASLADI;
+							kontrol_number=0;
+							HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
+						}
 
 			  break;
 
 		  case UCUS_BASLADI:
-				v4_mod=2;
-				// FLASH MEMORYE KAYDETMEYE BASLA
+						v4_mod=2;
+						// FLASH MEMORYE KAYDETMEYE BASLA
 
-				SUSTAINER=KADEMEAYRILDIMI;
+						SUSTAINER=KADEMEAYRILDIMI;
 
 			 break;
 
 		  case KADEMEAYRILDIMI:
-				v4_mod=3;
-					  //ALT KADEMEDEN GELEN SİNYALE VE EGÜ SWİTCHLERİNE BAK
-					  //BELLİ BİR SÜRE VE İRTİFA BOYUNCA AYRILMA OLMAZSA APOGEE YA GEÇ
-				if(timer_start_flag == 0){
+						v4_mod=3;
+							  //ALT KADEMEDEN GELEN SİNYALE VE EGÜ SWİTCHLERİNE BAK
+							  //BELLİ BİR SÜRE VE İRTİFA BOYUNCA AYRILMA OLMAZSA APOGEE YA GEÇ
+						if(timer_start_flag == 0){
 
-					__HAL_TIM_SET_COUNTER(&htim7 , 0);
-					HAL_TIM_Base_Start(&htim7);
-					timer_start_flag =1;
-				}
-				/*manyetik switch
-				 * */
-				if((magnetic_switch==0) && TIM7->CNT >= 45000 && altitude_rampa_control == 1)
-				{
-					kontrol_number++;
+							__HAL_TIM_SET_COUNTER(&htim7 , 0);
+							HAL_TIM_Base_Start(&htim7);
+							timer_start_flag =1;
+						}
 
-				}
+						if((magnetic_switch==0) && TIM7->CNT >= 45000 && altitude_rampa_control == 1)
+						{
+							kontrol_number++;
+							 new_data=0;
+						}
 
-				if(kontrol_number >1000)
-				{
-					 SUSTAINER=AYRILDI;
-					kontrol_number=0;
-				}
+						if(kontrol_number >10)
+						{
+							 SUSTAINER=AYRILDI;
+							kontrol_number=0;
+						}
 
 			 break;
 
 		  case AYRILDI:
-				v4_mod=4;
-					  //MOTOR ATE�?LEME TALEBİ GÖNDER MEGU YE MESAJ AT
+						v4_mod=4;
+							  //MOTOR ATE�?LEME TALEBİ GÖNDER MEGU YE MESAJ AT
 
-				HAL_UART_Transmit(&huart6, EGU_motor_atesleme, 5, 1000);
-				HAL_UART_Transmit(&huart6, EGU_motor_atesleme, 5, 1000);
-				HAL_UART_Transmit(&huart6, EGU_motor_atesleme, 5, 1000);
-				HAL_UART_Transmit(&huart6, EGU_motor_atesleme, 5, 1000);
-				HAL_UART_Transmit(&huart6, EGU_motor_atesleme, 5, 1000);
-				SUSTAINER=APOGEE;
+						HAL_UART_Transmit(&huart6, EGU_motor_atesleme, 5, 1000);
+						HAL_UART_Transmit(&huart6, EGU_motor_atesleme, 5, 1000);
+						HAL_UART_Transmit(&huart6, EGU_motor_atesleme, 5, 1000);
+						HAL_UART_Transmit(&huart6, EGU_motor_atesleme, 5, 1000);
+						HAL_UART_Transmit(&huart6, EGU_motor_atesleme, 5, 1000);
+						SUSTAINER=APOGEE;
 
 			 break;
 
 		  case APOGEE:
-				v4_mod=5;
-					  //AYRILMA GERÇEKLE�?MESE BİLE APOGEE İLE ROKETİ KURTAR *ucus basladı kısmına timer kuracam ona göre ayrıldımıdan APOGEEya geçecek
+						v4_mod=5;
+							  //AYRILMA GERÇEKLE�?MESE BİLE APOGEE İLE ROKETİ KURTAR *ucus basladı kısmına timer kuracam ona göre ayrıldımıdan APOGEEya geçecek
 
+						if(Lsm_Sensor.Accel_X <0 &&  altitude < altitude_max && new_data ==1 )
+						{
+							kontrol_number++;
+							 new_data=0;
 
-				if(Lsm_Sensor.Accel_X <0 &&  altitude < altitude_max && real_pitch <=70 )
-				{
-					// GPIO
-					kontrol_number++;
-					 if(kontrol_number%5 ==0)HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
-				}
-				if(kontrol_number >10)
-				{
-					SUSTAINER=SUSTAINER_ANA;
-					altitude_rampa_control =0;
-					HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, SET);
-					kontrol_number=0;
-					HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
-				}
-
+						}
+						if(kontrol_number >10)
+						{
+							SUSTAINER=SUSTAINER_ANA;
+							altitude_rampa_control =0;
+							HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, SET);
+							kontrol_number=0;
+							HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
+						}
 
 			 break;
 
 		  case SUSTAINER_ANA:
-				v4_mod=6;
-					  //AYRILDI VEYA APOGEEDAN GELEN APOGEE BİLGİSİNDEN SONRA İSTENEN İRTİFADA ANA PARA�?ÜT AÇ
+						v4_mod=6;
+							  //AYRILDI VEYA APOGEEDAN GELEN APOGEE BİLGİSİNDEN SONRA İSTENEN İRTİFADA ANA PARA�?ÜT AÇ
 
-				if(altitude <= 500 && speed < 0  && altitude_rampa_control == 0 )
-				{
-					// GPIO
-
-					kontrol_number++;
-
-				}
-				if(kontrol_number >10)
-				{
-				SUSTAINER=FINISH;
-				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, SET);
-				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, RESET);
-				HAL_Delay(50);
-					kontrol_number=0;
-					flash_flag=1;
-				}
-
-
+						if(altitude <= 500 && speed < 0  && altitude_rampa_control == 0 && new_data==1 )
+						{
+							kontrol_number++;
+							 new_data=0;
+						}
+						if(kontrol_number >10)
+						{
+						SUSTAINER=FINISH;
+						HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, SET);
+						HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, RESET);
+						HAL_Delay(50);
+							kontrol_number=0;
+							flash_flag=1;
+						}
 
 			  break;
 
 		  case FINISH:
-				v4_mod=7;
-					  //KURTARMA GERÇEKLE�?Tİ VERİ KAYDETMEYİ BIRAK VE BUZZERI AÇ
+						v4_mod=7;
+							  //KURTARMA GERÇEKLE�?Tİ VERİ KAYDETMEYİ BIRAK VE BUZZERI AÇ
 
-				HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, RESET);
+						HAL_GPIO_WritePin(GPIOB, GPIO_PIN_3, RESET);
 
 			  break;
 		  }
@@ -1547,6 +1548,15 @@ void union_converter(void)
 		 {
 			loratx[i+45]=f2u8_pitch.array[i];
 		 }
+
+		 f2u8_altitude.fVal=altitude_max;
+
+			loratx[69] = f2u8_altitude.array[0];
+			loratx[70] = f2u8_altitude.array[1];
+			loratx[71] = f2u8_altitude.array[2];
+			loratx[72] = f2u8_altitude.array[3];
+
+
 }
 
 void EGU_Buff_Load(void)
@@ -1568,7 +1578,7 @@ void EGU_Buff_Load(void)
 	loratx[66]=EGU_RX_BUFFER[26];//EGU UCUS BASLADIMI?
 	loratx[67]=EGU_RX_BUFFER[28];//manyetik switch 1 ise kopmadı 0 ise koptu
 	loratx[68]=EGU_RX_BUFFER[27];//MOTOR ATESLEME TALEBİ GELDİ Mİ?
-	loratx[69]='\n';
+	loratx[74]='\n';
 
 }
 
