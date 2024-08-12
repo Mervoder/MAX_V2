@@ -436,8 +436,6 @@ int main(void)
    HAL_Delay(1000);
    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
 
-
-
  //  W25Q_Read(1, 0,  256, test);
 
 
@@ -486,9 +484,9 @@ int main(void)
 		          pressure = comp_data.pressure;
 		          altitude = BME280_Get_Altitude() - offset_altitude;
 		          altitude_kalman = KalmanFilter_Update(&kf, altitude);
-		          speed_time = (HAL_GetTick()-speed_time_prev)/1000.0f;
-		          speed = (altitude - prev_alt) * speed_time;
-		          speed_time_prev = speed_time;
+		         // speed_time = (HAL_GetTick()-speed_time_prev)/1000.0f;
+		          speed = (altitude - prev_alt) * 3.33;
+		         // speed_time_prev = speed_time;
 		      }
 
 
@@ -1163,9 +1161,9 @@ static void MX_TIM11_Init(void)
 
   /* USER CODE END TIM11_Init 1 */
   htim11.Instance = TIM11;
-  htim11.Init.Prescaler = 16800;
+  htim11.Init.Prescaler = 16800-1;
   htim11.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim11.Init.Period = 7000-1;
+  htim11.Init.Period = 15000-1;
   htim11.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim11.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim11) != HAL_OK)
