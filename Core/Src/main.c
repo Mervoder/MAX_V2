@@ -437,7 +437,9 @@ int main(void)
    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_4);
 
  //  W25Q_Read(1, 0,  256, test);
-
+//   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, SET);
+//   HAL_Delay(2000);
+//   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, RESET);
 
 
  //  W25Q_Read(1, 0, sizeof(flash_accX), flash_accX);
@@ -598,7 +600,7 @@ int main(void)
 							new_data =0;
 
 						  }
-						if(kontrol_number >10)
+						if(kontrol_number >3)
 						{
 							SUSTAINER=UCUS_BASLADI;
 							kontrol_number=0;
@@ -657,7 +659,7 @@ int main(void)
 						v4_mod=5;
 							  //AYRILMA GERÇEKLE�?MESE BİLE APOGEE İLE ROKETİ KURTAR *ucus basladı kısmına timer kuracam ona göre ayrıldımıdan APOGEEya geçecek
 
-						if(Lsm_Sensor.Accel_X <0 &&  altitude < altitude_max && new_data ==1 )
+						if(/*Lsm_Sensor.Accel_X <0 && */ altitude < altitude_max && new_data ==1 && real_pitch <60 )
 						{
 							kontrol_number++;
 							 new_data=0;
@@ -1410,7 +1412,7 @@ void E220_CONFIG(uint8_t ADDH, uint8_t ADDL, uint8_t CHN, uint8_t MODE)
     cfg_buff[0] = ADDH;
     cfg_buff[1] = ADDL;
     cfg_buff[2] = 0x62;  // 62 2.4kbps 63 4.8 kpbs
-    cfg_buff[3] = 0x00;
+    cfg_buff[3] = 0x40; /// 0x00
     cfg_buff[4] = CHN;
 
     switch(mode){
